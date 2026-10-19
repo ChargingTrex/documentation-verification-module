@@ -36,13 +36,19 @@ checkpoint must pass -- actually run, output shown -- before the next starts.
 - [x] `ocr/aadhaar.py` (Verhoeff checksum, name/DOB/gender/address), `ocr/pan.py`
 - [x] `POST /documents/id`; synthetic card fixtures (Pillow) with the lines embedded
 - [x] `Dockerfile.ocr-vl` + `ocr_vl_server/` + `bench/ocr_bench.py`
-- [ ] Benchmark PaddleOCR vs PaddleOCR-VL 1.5 on the fixture cards; table in README
-- **Checkpoint:** stub parsers pass on 4 Aadhaar + 3 PAN layouts; PaddleOCR
-  reads name + last-4 on a real scan of each type.
+- [x] PaddleOCR model variants measured on three real scans (README table); defaults kept
+- [ ] Benchmark PaddleOCR vs PaddleOCR-VL 1.5 (needs the Docker image; `bench/ocr_bench.py`)
+- **Checkpoint (passed 2026-10-19):** stub parsers pass on 4 Aadhaar + 3 PAN
+  layouts; on real scans PaddleOCR read the Aadhaar front (name, DOB, gender,
+  number + checksum), the Aadhaar back (address with PIN and state) and the PAN
+  (name, father's name, DOB, PAN format) -- 8/8 fields, 5-12 s per image.
 
 ## Phase 3 — Verification + UI
 - [x] `verify/names.py` (normalise, initials capped at review, token_set_ratio, thresholds)
 - [x] `verify/service.py`, `POST /verify`, `POST /verify/documents`, `GET /verifications/{id}`
 - [x] `static/index.html`: upload both, verdict banner, per-field source badges
-- **Checkpoint:** Aarav CV vs "Aarav Mehta" Aadhaar → match; vs Kabir → mismatch;
-  "A. Mehta" → review; badges show LLM/Regex/OCR.
+- [x] Real documents: pdfium before PyPDF2 (glyph-per-line PDFs), top-line name on the regex path
+- **Checkpoint (passed 2026-10-19):** Aarav CV vs "Aarav Mehta" Aadhaar → match;
+  vs Kabir → mismatch; "A. Mehta" → review. A real resume vs a real Aadhaar of a
+  different person → mismatch at 23, with name/email/phone/address/experience
+  read on the regex path. LLM pass with `gemma4:e4b`: pending the model download.
