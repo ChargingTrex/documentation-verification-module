@@ -11,8 +11,8 @@ Rules:
 - Emails and phones are regex's: the patterns are exact and cannot be
   talked into anything. The model's lists only fill a gap.
 - Name, address, education entries, experience entries, skills come from
-  the model; regex can only supply an address (PIN-anchored) and a bare
-  education level.
+  the model; regex can only supply the top-line name, an address
+  (PIN-anchored) and a bare education level.
 """
 
 from __future__ import annotations
@@ -42,7 +42,13 @@ def cv_record(profile: ExtractedProfile) -> dict:
     phones = pick_list("phones")
 
     full_name = (facts.get("full_name") or "").strip() or None
-    sources["full_name"] = LLM if full_name else NONE
+    if full_name:
+        sources["full_name"] = LLM
+    elif regex.get("full_name"):
+        full_name = regex["full_name"]
+        sources["full_name"] = REGEX
+    else:
+        sources["full_name"] = NONE
 
     if facts.get("address"):
         address = describe_address(facts["address"])

@@ -45,7 +45,7 @@ class TestCvUpload:
         assert cv["extraction_source"] == "regex"
         assert cv["llm_model"] is None
         assert cv["field_sources"]["emails"] == "regex"
-        assert cv["field_sources"]["full_name"] == "none"
+        assert cv["full_name"] == "Aarav Mehta" and cv["field_sources"]["full_name"] == "regex"
 
     def test_the_record_is_persisted_and_readable_back(self, api):
         uploaded = _upload(api, subject_type="employee").json()

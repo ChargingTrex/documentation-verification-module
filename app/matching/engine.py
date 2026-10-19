@@ -32,6 +32,7 @@ from dataclasses import dataclass, field
 from app import llm
 from app.config import settings
 from app.extraction.address import find_address
+from app.extraction.name import find_name
 from app.extraction.facts import (
     effective_education_levels,
     find_age,
@@ -230,6 +231,7 @@ class MatchingEngine:
             "phones": find_phones(text),
             "cgpa": find_cgpa(text),
             "address": find_address(text),
+            "full_name": find_name(text),
         }
 
     def analyse_resume(

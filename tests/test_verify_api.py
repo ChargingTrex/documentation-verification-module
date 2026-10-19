@@ -51,8 +51,23 @@ class TestVerify:
         assert body["name_match"]["verdict"] == "mismatch"
         assert body["name_match"]["cv"] == "Kabir Nair"
 
-    def test_without_a_model_the_cv_has_no_name_and_the_verdict_says_so(self, api, card_dir):
+    def test_without_a_model_the_top_line_name_still_verifies(self, api, card_dir):
         body = _verify(api, card_dir).json()
+
+        assert body["name_match"]["verdict"] == "match"
+        assert body["cv"]["field_sources"]["full_name"] == "regex"
+
+    def test_a_cv_with_no_readable_name_says_so(self, api, card_dir, tmp_path):
+        from tests.fixtures.make_resumes import write_pdf
+
+        path = tmp_path / "anon.pdf"
+        write_pdf(path, ["SKILLS", "Python, Django", "EXPERIENCE", "Intern, Acme, Jan 2024 - Mar 2024"])
+        with path.open("rb") as cv_file, (card_dir / "aarav_aadhaar.png").open("rb") as card_file:
+            body = api.post(
+                "/verify",
+                files={"cv": ("anon.pdf", cv_file, "application/pdf"), "id_card": ("c.png", card_file, "image/png")},
+                data={"id_type": "aadhaar"},
+            ).json()
 
         assert body["name_match"]["verdict"] == "mismatch"
         assert body["name_match"]["method"] == "missing"

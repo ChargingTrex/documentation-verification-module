@@ -42,8 +42,16 @@ class TestRegexPath:
         assert sources["emails"] == sources["phones"] == sources["address"] == "regex"
         assert sources["education"] == sources["cgpa"] == sources["experience_years"] == "regex"
 
-    def test_what_regex_cannot_read_is_marked_none(self, engine):
+    def test_the_top_line_name_is_regex(self, engine):
         record = cv_record(engine.analyse_resume(TEXT, today=TODAY))
+
+        assert record["full_name"] == "Aarav Mehta"
+        assert record["field_sources"]["full_name"] == "regex"
+
+    def test_what_regex_cannot_read_is_marked_none(self, engine):
+        nameless = "\n".join(TEXT.split("\n")[1:])  # the same resume without its top line
+
+        record = cv_record(engine.analyse_resume(nameless, today=TODAY))
 
         assert record["full_name"] is None
         assert record["experience"] == [] and record["skills"] == []

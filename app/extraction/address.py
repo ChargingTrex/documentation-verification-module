@@ -25,11 +25,12 @@ _STATE = re.compile(
     r"\b(" + "|".join(re.escape(s) for s in sorted(STATES, key=len, reverse=True)) + r")\b",
     re.IGNORECASE,
 )
-# Six digits, first non-zero, not part of a longer number or a phone.
-_PIN = re.compile(r"(?<![\d\-+])([1-9]\d{5})(?![\d\-])")
+# Six digits, first non-zero, not part of a longer number or a phone
+# ("98765-43210" has a digit before its hyphen; "Dt-601301" does not).
+_PIN = re.compile(r"(?<![\d+])(?<!\d-)([1-9]\d{5})(?![\d\-])")
 _LABEL = re.compile(
-    r"^\s*(?:permanent\s+|current\s+|present\s+|postal\s+|residential\s+|home\s+)?"
-    r"address\s*[:\-–]?\s*",
+    r"^\s*(?:permanent\s+|current\s+|present\s+|postal\s+|residential\s+|home\s+|communication\s+)?"
+    r"address(?:\s+for\s+\w+|\s+\(\w+\))?\s*[:\-–]?\s*",
     re.IGNORECASE,
 )
 # Words that make a line read as an address, used to pull in the lines above a PIN.

@@ -1,15 +1,16 @@
 """
 Plain text out of an uploaded resume.
 
-Ported from the resume-matcher prototype's PDF/DOCX readers. The one
-behavioural change: the prototype swallowed every exception and returned an
-empty string, which made a corrupt upload indistinguishable from a blank
-page. Here a file we cannot read raises, so the profile upload flow can tell
-the student their file is unreadable instead of silently pre-filling nothing.
+Ported from the placement portal's matching app. Two behavioural changes
+from the original prototype: a file we cannot read raises (so the upload
+flow can say so instead of silently extracting nothing), and PDFs go
+through pdfium before PyPDF2, because a designer-template resume comes out
+of PyPDF2 as one character per line.
 """
 
 from __future__ import annotations
 
+import io
 import re
 from pathlib import Path
 
@@ -37,14 +38,54 @@ def _normalise_whitespace(text: str) -> str:
     return "\n".join(line.strip() for line in text.split("\n")).strip()
 
 
+def _degenerate(text: str) -> bool:
+    """
+    One glyph per line: what PyPDF2 makes of a designer-template PDF whose
+    characters are positioned individually. Nothing downstream can read it.
+    """
+    lines = [line for line in text.split("\n") if line.strip()]
+    return bool(lines) and sum(len(line.strip()) == 1 for line in lines) / len(lines) > 0.3
+
+
+def _pdf_text_pdfium(data: bytes) -> str:
+    import pypdfium2 as pdfium
+
+    document = pdfium.PdfDocument(data)
+    pages = []
+    for page in document:
+        textpage = page.get_textpage()
+        get_text = getattr(textpage, "get_text_bounded", None) or textpage.get_text_range
+        pages.append(get_text() or "")
+    return "\n".join(pages)
+
+
+def _pdf_text_pypdf2(data: bytes) -> str:
+    reader = PyPDF2.PdfReader(io.BytesIO(data))
+    return "\n".join(page.extract_text() or "" for page in reader.pages)
+
+
 def extract_text_from_pdf(file_obj) -> str:
-    try:
-        reader = PyPDF2.PdfReader(file_obj)
-        pages = [page.extract_text() or "" for page in reader.pages]
-    except Exception as exc:
-        raise ResumeParseError(f"Could not read the PDF: {exc}") from exc
-    # Page breaks become blank lines rather than joining two sentences.
-    return _normalise_whitespace("\n".join(pages))
+    """
+    pdfium first -- it reassembles words from positioned glyphs -- then PyPDF2.
+    The first reader whose output is not glyph-per-line wins; failing that,
+    the longest output; failing that, the last error.
+    """
+    data = file_obj.read() if hasattr(file_obj, "read") else bytes(file_obj)
+    fallbacks: list[str] = []
+    error: Exception | None = None
+    for reader in (_pdf_text_pdfium, _pdf_text_pypdf2):
+        try:
+            text = reader(data)
+        except Exception as exc:  # a corrupt file, or a reader that is not installed
+            error = exc
+            continue
+        if text.strip() and not _degenerate(text):
+            # Page breaks become blank lines rather than joining two sentences.
+            return _normalise_whitespace(text)
+        fallbacks.append(text)
+    if fallbacks:
+        return _normalise_whitespace(max(fallbacks, key=len))
+    raise ResumeParseError(f"Could not read the PDF: {error}") from error
 
 
 def extract_text_from_docx(file_obj) -> str:
