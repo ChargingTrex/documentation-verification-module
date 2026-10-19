@@ -22,12 +22,12 @@ class TestLabelled:
         assert address["pincode"] == "641001"
 
     def test_a_qualified_label_is_stripped_and_a_hyphenated_pin_is_read(self):
-        text = "Address for Communication: No:4 Selva Nagar, Kizh Padappai, Kanchipuram Dt-601301"
+        text = "Address for Communication: No:4 Lotus Nagar, Old Town, Chennai Dt-600001"
 
         address = find_address(text)
 
-        assert address["raw"].startswith("No:4 Selva Nagar")
-        assert address["pincode"] == "601301"
+        assert address["raw"].startswith("No:4 Lotus Nagar")
+        assert address["pincode"] == "600001"
 
     def test_a_labelled_address_never_swallows_contact_lines(self):
         text = "Permanent Address: Flat 3B, Baner Road, Pune\na@b.com"

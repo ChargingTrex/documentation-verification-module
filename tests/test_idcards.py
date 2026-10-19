@@ -194,27 +194,27 @@ class TestPanHeuristics:
         ],
     )
     def test_a_printed_heading_is_never_the_name_however_garbled(self, header):
-        facts = self._parse(header, "BEHPM9319H", "/Father's Name", "NEELAMEGAM", "06/06/1992 /Signature")
+        facts = self._parse(header, "ABCPM1234F", "/Father's Name", "RAMESH", "12/03/2003 /Signature")
 
         assert facts.full_name != header.strip()
-        assert facts.father_name == "NEELAMEGAM"
+        assert facts.father_name == "RAMESH"
 
     def test_with_the_name_label_lost_the_line_above_the_father_label_is_the_name(self):
-        """What a poor read of the real card looks like: garbage at the top,
+        """What a poor read of a real card looks like: garbage at the top,
         the father's label intact, the name just above it."""
-        facts = self._parse("CEN OV IA", "ge", "erar", "E19H", "PRAVEEN BALAJI N", "/Father's Name",
-                            "NEELAMEGAM", "06/06/1992 R/Signature")
+        facts = self._parse("CEN OV IA", "ge", "erar", "E19H", "ARJUN RAMESH K", "/Father's Name",
+                            "RAMESH", "12/03/2003 R/Signature")
 
-        assert facts.full_name == "PRAVEEN BALAJI N"
-        assert facts.father_name == "NEELAMEGAM"
+        assert facts.full_name == "ARJUN RAMESH K"
+        assert facts.father_name == "RAMESH"
 
     def test_garbage_capitals_alone_do_not_become_a_name_over_the_father_anchor(self):
-        facts = self._parse("CEN OV IA", "erar", "/Father's Name", "NEELAMEGAM")
+        facts = self._parse("CEN OV IA", "erar", "/Father's Name", "RAMESH")
 
         # Nothing name-like sits right above the father label, so the old-layout
         # fallback runs; the father's line is excluded from it.
-        assert facts.father_name == "NEELAMEGAM"
-        assert facts.full_name != "NEELAMEGAM"
+        assert facts.father_name == "RAMESH"
+        assert facts.full_name != "RAMESH"
 
     def test_lowercase_lines_are_not_pan_names(self):
         facts = self._parse("some lowercase words", "Name", "AARAV MEHTA")
@@ -237,7 +237,7 @@ class TestDetectCardType:
         from app.ocr.cards import detect_card_type
 
         assert detect_card_type(self._lines("lNCOME TAX DEPARTMENT GOVT.OFINDIA", "Permanent Account Number Card",
-                                            "/Father's Name", "NEELAMEGAM")) == "pan"
+                                            "/Father's Name", "RAMESH")) == "pan"
 
     def test_an_aadhaar_back_is_still_an_aadhaar(self):
         from app.ocr.cards import detect_card_type

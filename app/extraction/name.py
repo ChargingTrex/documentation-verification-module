@@ -3,7 +3,7 @@ The candidate's name off the top of a resume, without a model.
 
 Resumes put the name first: the first line (or the first after a "RESUME"
 banner) that reads as two to five name-like tokens, or one token with an
-initial ("S.Soundhar"). It is a fallback for when the LLM is off, and the
+initial ("R.Karthik"). It is a fallback for when the LLM is off, and the
 record marks it `regex`; the model's reading wins when there is one.
 """
 
@@ -30,7 +30,7 @@ def find_name(text: str) -> str | None:
             continue
         tokens = line.split()
         # One bare word is a heading ("SKILLS"), not a person; one word with
-        # an initial ("S.Soundhar") is.
+        # an initial ("R.Karthik") is.
         if len(tokens) == 1 and "." not in line:
             continue
         if all(len(token.strip(".")) <= 1 for token in tokens):

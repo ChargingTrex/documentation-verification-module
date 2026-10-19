@@ -21,7 +21,7 @@ class TestHealth:
 
         assert body["status"] == "ok"
         assert body["ocr_engine"] == "stub"
-        assert body["llm"]["enabled"] is False
+        assert body["llm"]["enabled"] is False and body["llm"]["mode"] == "off"
         assert body["matching"]["backend"] in {"tfidf", "spacy"}
 
     def test_the_ui_is_served_at_the_root(self, api):

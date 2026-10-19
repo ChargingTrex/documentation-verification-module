@@ -50,10 +50,16 @@ class Settings(BaseSettings):
     ocr_text_recognition_model: str | None = None
     ocr_vl_base_url: str = "http://localhost:8118"
 
-    # --- LLM (local Ollama, OpenAI-compatible) ---
+    # --- LLM: any OpenAI-compatible chat API ---
+    # Default: a local Ollama, no key, nothing leaves the machine. To use a
+    # hosted provider instead, point LLM_BASE_URL at its /v1 and set
+    # LLM_API_KEY -- and accept that resumes are then sent to that provider.
     llm_enabled: bool = True
     llm_base_url: str = "http://localhost:11434/v1"
     llm_model: str = "gemma4:e4b"
+    llm_api_key: str | None = None
+    #: Ask for `response_format: json_object`. Off for providers that reject it.
+    llm_json_mode: bool = True
     #: gemma4:e4b on a 2018 Intel i7 (CPU only) takes ~3 minutes per resume.
     llm_timeout_seconds: float = 600.0
 

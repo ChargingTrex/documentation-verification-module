@@ -11,7 +11,7 @@ from app.extraction.name import find_name
         ("Aarav Mehta\naarav@college.edu | PRN2022CS001\n\nSUMMARY", "Aarav Mehta"),
         ("RESUME\n\nSana Qureshi\nsana@x.com", "Sana Qureshi"),
         ("CURRICULUM VITAE\nKabir Nair\n", "Kabir Nair"),
-        ("S.SOUNDHAR\nSoftware Engineer\n+91 98765 43210", "S.SOUNDHAR"),
+        ("R.KARTHIK\nSoftware Engineer\n+91 98765 43210", "R.KARTHIK"),
         ("Dr. Rajan Sathiya\nProfessor", "Dr. Rajan Sathiya"),
         ("Ananya Krishnan Iyer\n", "Ananya Krishnan Iyer"),
     ],

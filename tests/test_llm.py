@@ -343,11 +343,12 @@ class TestClient:
         with pytest.raises(llm.LLMUnavailable):
             client.chat_json("system", "user")
 
-    def test_the_chat_request_asks_for_json_at_temperature_zero(self, monkeypatch):
+    @staticmethod
+    def _capture(monkeypatch):
         seen = {}
 
-        def fake_post(url, json, timeout):
-            seen.update(url=url, body=json)
+        def fake_post(url, json, headers, timeout):
+            seen.update(url=url, body=json, headers=headers)
             return httpx.Response(
                 200,
                 json={"choices": [{"message": {"content": "{}"}}]},
@@ -355,12 +356,64 @@ class TestClient:
             )
 
         monkeypatch.setattr(httpx, "post", fake_post)
+        return seen
+
+    def test_the_chat_request_asks_for_json_at_temperature_zero(self, monkeypatch):
+        seen = self._capture(monkeypatch)
         client = llm.LLMClient("http://ollama:11434/v1/", "gemma4:e4b", timeout=5)
 
         assert client.chat_json("s", "u") == "{}"
         assert seen["url"] == "http://ollama:11434/v1/chat/completions"
         assert seen["body"]["temperature"] == 0
         assert seen["body"]["response_format"] == {"type": "json_object"}
+        assert "Authorization" not in seen["headers"]
+
+    def test_an_api_key_goes_out_as_a_bearer_token(self, monkeypatch):
+        seen = self._capture(monkeypatch)
+        client = llm.LLMClient("https://api.example.com/v1", "some-model", timeout=5, api_key="sk-test")
+
+        client.chat_json("s", "u")
+
+        assert seen["headers"]["Authorization"] == "Bearer sk-test"
+
+    def test_json_mode_can_be_turned_off_for_providers_that_reject_it(self, monkeypatch):
+        seen = self._capture(monkeypatch)
+        client = llm.LLMClient("https://api.example.com/v1", "m", timeout=5, api_key="k", json_mode=False)
+
+        client.chat_json("s", "u")
+
+        assert "response_format" not in seen["body"]
+
+    def test_settings_build_the_client(self, settings):
+        settings.llm_enabled = True
+        settings.llm_base_url = "https://api.groq.com/openai/v1/"
+        settings.llm_model = "llama-3.3-70b-versatile"
+        settings.llm_api_key = "gsk_test"
+
+        client = llm.get_client()
+
+        assert client.base_url == "https://api.groq.com/openai/v1"
+        assert client.api_key == "gsk_test" and client.is_local is False
+
+    def test_health_never_shows_the_key(self, settings):
+        from app.llm.client import llm_info
+
+        settings.llm_enabled = True
+        settings.llm_api_key = "sk-secret"
+        settings.llm_base_url = "https://api.openai.com/v1"
+
+        info = llm_info()
+
+        assert info["mode"] == "hosted" and info["api_key_set"] is True
+        assert "sk-secret" not in str(info)
+
+    def test_a_local_ollama_is_reported_as_local(self, settings):
+        from app.llm.client import llm_info
+
+        settings.llm_enabled = True
+        settings.llm_api_key = None
+
+        assert llm_info()["mode"] == "local"
 
 
 class TestEngineAnalysis:

@@ -53,16 +53,13 @@ def index() -> FileResponse:
 
 @app.get("/health")
 def health() -> dict:
+    from app.llm.client import llm_info
     from app.matching.backends import backend_info
 
     return {
         "status": "ok",
         "ocr_engine": settings.ocr_engine,
-        "llm": {
-            "enabled": settings.llm_enabled,
-            "model": settings.llm_model if settings.llm_enabled else None,
-            "base_url": settings.llm_base_url,
-        },
+        "llm": llm_info(),
         "matching": backend_info(),
         "database": "sqlite" if settings.is_sqlite else "postgres",
     }

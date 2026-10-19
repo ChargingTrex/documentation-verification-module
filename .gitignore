@@ -7,16 +7,24 @@ __pycache__/
 .coverage
 htmlcov/
 
-# App data
-/data/uploads/*
-!/data/uploads/.gitkeep
+# Uploads: real CVs and ID cards. Only the empty folders are tracked.
+/data/uploads/**
+!/data/uploads/
+!/data/uploads/cv/
+!/data/uploads/aadhaar/
+!/data/uploads/pan/
+!/data/uploads/**/.gitkeep
+
+# Databases and benchmark output
 /data/*.sqlite3
 /data/*.sqlite3-journal
+/data/.DS_Store
 /bench/results/
 
-# Environment
+# Environment (holds API keys)
 .env
 .env.local
+.env.*.local
 
 # Editors / OS
 .DS_Store

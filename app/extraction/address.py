@@ -26,7 +26,7 @@ _STATE = re.compile(
     re.IGNORECASE,
 )
 # Six digits, first non-zero, not part of a longer number or a phone
-# ("98765-43210" has a digit before its hyphen; "Dt-601301" does not).
+# ("98765-43210" has a digit before its hyphen; "Dt-600001" does not).
 _PIN = re.compile(r"(?<![\d+])(?<!\d-)([1-9]\d{5})(?![\d\-])")
 _LABEL = re.compile(
     r"^\s*(?:permanent\s+|current\s+|present\s+|postal\s+|residential\s+|home\s+|communication\s+)?"
