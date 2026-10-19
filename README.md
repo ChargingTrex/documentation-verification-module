@@ -49,7 +49,11 @@ PaddlePaddle and so runs only in Docker on an Intel Mac.
 
 Every CV field carries its source in `field_sources`: `"llm"` (the model
 read it), `"regex"` (a pattern read it) or `"none"`. Emails and phones are
-always regex's when it found any; the model only fills gaps.
+always regex's when it found any; the model only fills gaps. `agreement`
+shows where regex and the model read the same resume differently.
+
+Timing on a 2018 Intel i7 (CPU only): a card ~5–12 s, a resume on the regex
+path under a second, with `gemma4:e4b` ~3.5 min. The UI says so while it waits.
 
 ## OCR engine choice (measured)
 

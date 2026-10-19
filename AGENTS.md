@@ -51,4 +51,6 @@ checkpoint must pass -- actually run, output shown -- before the next starts.
 - **Checkpoint (passed 2026-10-19):** Aarav CV vs "Aarav Mehta" Aadhaar → match;
   vs Kabir → mismatch; "A. Mehta" → review. A real resume vs a real Aadhaar of a
   different person → mismatch at 23, with name/email/phone/address/experience
-  read on the regex path. LLM pass with `gemma4:e4b`: pending the model download.
+  read on the regex path. With `gemma4:e4b` on: name, address, education,
+  experience, skills, DOB badged `llm`; email/phone `regex`; regex and model
+  agree on experience years and education level. ~3.5 min per resume on this CPU.
