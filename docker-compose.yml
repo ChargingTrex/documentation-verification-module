@@ -1,22 +1,33 @@
 # Local stack: the API (with PaddleOCR), Ollama for the LLM, and -- only when
-# benchmarking -- the PaddleOCR-VL server (profile `vl`, see Phase 2).
+# benchmarking -- the PaddleOCR-VL server (profile `vl`).
 #
 #   docker compose up api ollama
 #   docker compose exec ollama ollama pull gemma4:e4b
-#   docker compose --profile vl up ocr-vl
+#   open http://localhost:8010
+#
+# To use a hosted LLM instead of Ollama, put LLM_BASE_URL / LLM_MODEL /
+# LLM_API_KEY in .env; compose passes them through.
 
 services:
   api:
     build: .
     ports:
-      - "8000:8000"
+      - "8010:8000"
     environment:
-      LLM_ENABLED: "true"
+      LLM_ENABLED: ${LLM_ENABLED:-true}
+      LLM_BASE_URL: ${LLM_BASE_URL:-http://ollama:11434/v1}
       LLM_MODEL: ${LLM_MODEL:-gemma4:e4b}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_JSON_MODE: ${LLM_JSON_MODE:-true}
+      LLM_TIMEOUT_SECONDS: ${LLM_TIMEOUT_SECONDS:-600}
       OCR_ENGINE: ${OCR_ENGINE:-paddleocr}
+      OCR_ORIENTATION: ${OCR_ORIENTATION:-true}
       OCR_VL_BASE_URL: http://ocr-vl:8118
+      NAME_MATCH_THRESHOLD: ${NAME_MATCH_THRESHOLD:-85}
+      NAME_REVIEW_THRESHOLD: ${NAME_REVIEW_THRESHOLD:-70}
     volumes:
-      - ./data:/srv/data
+      - ./data:/srv/data          # uploads and the SQLite database
+      - paddlex:/root/.paddlex    # downloaded OCR models
     depends_on:
       - ollama
 

@@ -51,6 +51,26 @@ engine. Add the pieces you want:
 Copy `.env.example` to `.env` to change anything; every value has a
 working default.
 
+### Docker
+
+```bash
+docker compose up api ollama                       # API on :8010 with PaddleOCR, plus Ollama
+docker compose exec ollama ollama pull gemma4:e4b  # once; the model lives in a volume
+```
+
+Or just the API image, bringing your own LLM:
+
+```bash
+docker build -t document-verifier .
+docker run -p 8010:8000 -v "$(pwd)/data:/srv/data" -v paddlex:/root/.paddlex \
+  -e LLM_BASE_URL=https://api.groq.com/openai/v1 -e LLM_MODEL=llama-3.3-70b-versatile -e LLM_API_KEY=... \
+  document-verifier
+```
+
+Uploads and the SQLite database land in `./data`; the OCR models download
+on first use into the `paddlex` volume. Inside the container PaddleOCR
+runs on PaddlePaddle's own runtime (Linux has the wheels).
+
 ### Using a hosted LLM (API key)
 
 The client speaks the OpenAI chat API, so any provider that implements it
