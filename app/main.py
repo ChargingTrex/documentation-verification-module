@@ -18,7 +18,7 @@ from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.api import documents, match, subjects
+from app.api import documents, match, subjects, verify
 from app.config import settings
 from app.db import init_db
 
@@ -43,6 +43,7 @@ app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 app.include_router(documents.router)
 app.include_router(subjects.router)
 app.include_router(match.router)
+app.include_router(verify.router)
 
 
 @app.get("/", include_in_schema=False)
