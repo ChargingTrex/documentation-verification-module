@@ -1,0 +1,10 @@
+.venv/
+.git/
+.pytest_cache/
+__pycache__/
+data/
+bench/results/
+tests/
+.env
+.env.local
+*.md
