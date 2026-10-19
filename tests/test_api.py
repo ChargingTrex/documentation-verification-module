@@ -109,6 +109,7 @@ class TestIdUpload:
         body = response.json()
         card = body["id_card"]
         assert body["kind"] == "aadhaar" and body["subject_id"]
+        assert card["sides"] == ["front"]
         assert card["full_name"] == "Aarav Mehta"
         assert card["dob"] == "2003-03-12"
         assert card["gender"] == "M"
@@ -123,6 +124,12 @@ class TestIdUpload:
         assert card["full_name"] == "AARAV MEHTA"
         assert card["father_name"] == "RAJESH MEHTA"
         assert card["id_last4"] == "234F"
+
+    def test_an_aadhaar_back_is_read_as_the_back(self, api):
+        card = self._upload(api, "aarav_aadhaar_back.png", type="aadhaar", side="back").json()["id_card"]
+
+        assert card["sides"] == ["back"]
+        assert card["address"]["pincode"] == "600017" and card["full_name"] is None
 
     def test_the_stored_extraction_is_the_ocr_record(self, api):
         uploaded = self._upload(api, "aarav_pan.png", type="pan").json()

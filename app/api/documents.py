@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+from typing import Literal
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy.orm import Session
@@ -93,7 +94,12 @@ def analyse_id_bytes(data: bytes, filename: str, id_type: str) -> dict:
 
 
 def save_id(
-    session: Session, data: bytes, filename: str, id_type: str, subject_id: str | None
+    session: Session,
+    data: bytes,
+    filename: str,
+    id_type: str,
+    subject_id: str | None,
+    side: str = "front",
 ) -> tuple[Document, dict]:
     """Store the card image, read it, persist both. Shared with /verify."""
     try:
@@ -102,8 +108,10 @@ def save_id(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     record = analyse_id_bytes(data, filename, id_type)
+    record["sides"] = [side]
     document = Document(
-        subject_id=subject_id, kind=id_type, path=str(stored.path), filename=filename, sha256=stored.sha256
+        subject_id=subject_id, kind=id_type, side=side, path=str(stored.path),
+        filename=filename, sha256=stored.sha256,
     )
     session.add(document)
     session.flush()
@@ -115,14 +123,17 @@ def save_id(
 async def upload_id(
     file: UploadFile = File(..., description="Scanned Aadhaar or PAN card: PNG, JPEG, WEBP or PDF"),
     type: IdType = Form(..., description="aadhaar | pan"),
+    side: Literal["front", "back"] = Form("front", description="Aadhaar has two sides; PAN is front only"),
     subject_id: str | None = Form(None),
     subject_type: str | None = Form(None, description="student | employee; creates a subject"),
     external_ref: str | None = Form(None),
     session: Session = Depends(get_session),
 ):
+    if type == "pan" and side == "back":
+        raise HTTPException(status_code=422, detail="A PAN card has no back side to read.")
     data = await file.read()
     subject = resolve_subject(session, subject_id, subject_type, external_ref)
-    document, record = save_id(session, data, file.filename or "card", type, subject.id if subject else None)
+    document, record = save_id(session, data, file.filename or "card", type, subject.id if subject else None, side)
     session.commit()
     return IdUploadResponse(
         document_id=document.id,

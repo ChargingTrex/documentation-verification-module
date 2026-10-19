@@ -111,4 +111,44 @@ def parse_aadhaar(lines: list[OcrLine], engine_name: str = "unknown", engine_det
 
     # --- a printed mobile (back side, sometimes) -- never the Aadhaar digits ---
     facts.phones = find_phones(NUMBER.sub(" ", joined))
+    facts.sides = ["back" if facts.address and not facts.full_name else "front"]
     return facts
+
+
+def merge_aadhaar(front: IdCardFacts | None, back: IdCardFacts | None) -> IdCardFacts:
+    """
+    One card out of its two sides.
+
+    Identity fields come from the front (the back only when the front lacks
+    them), the address from the back. Both sides print the number: when both
+    were read, their last four digits must agree -- a mismatch means the two
+    images are not the same card, which is a check the reviewer must see.
+    """
+    if front is None and back is None:
+        raise ValueError("At least one side is needed.")
+    if front is None or back is None:
+        single = front or back
+        single.sides = ["front"] if front else ["back"]
+        return single
+
+    merged = IdCardFacts(type="aadhaar", ocr_engine=front.ocr_engine, ocr_detail=front.ocr_detail)
+    merged.sides = ["front", "back"]
+    for name in ("full_name", "dob", "year_of_birth", "gender", "father_name"):
+        setattr(merged, name, getattr(front, name) or getattr(back, name))
+    merged.address = back.address or front.address
+    merged.phones = list(dict.fromkeys(front.phones + back.phones))
+    merged.id_last4 = front.id_last4 or back.id_last4
+    scores = [s for s in (front.ocr_confidence, back.ocr_confidence) if s is not None]
+    merged.ocr_confidence = round(sum(scores) / len(scores), 3) if scores else None
+    merged.lines = [f"front: {line}" for line in front.lines] + [f"back: {line}" for line in back.lines]
+
+    merged.checks = {**back.checks, **front.checks}
+    merged.checks["aadhaar_number_found"] = bool(front.id_last4 or back.id_last4)
+    if "aadhaar_checksum" in front.checks or "aadhaar_checksum" in back.checks:
+        merged.checks["aadhaar_checksum"] = bool(
+            front.checks.get("aadhaar_checksum", back.checks.get("aadhaar_checksum"))
+            and back.checks.get("aadhaar_checksum", front.checks.get("aadhaar_checksum"))
+        )
+    if front.id_last4 and back.id_last4:
+        merged.checks["aadhaar_sides_agree"] = front.id_last4 == back.id_last4
+    return merged

@@ -50,6 +50,7 @@ def parse_pan(lines: list[OcrLine], engine_name: str = "unknown", engine_detail:
     rows_ = texts(lines)
     facts = IdCardFacts(type="pan", ocr_engine=engine_name, ocr_detail=engine_detail, ocr_confidence=confidence(lines))
     facts.lines = [mask_pan(row) for row in texts(lines, min_score=None)]
+    facts.sides = ["front"]
     joined = "\n".join(rows_)
 
     if pan := PAN.search(joined):

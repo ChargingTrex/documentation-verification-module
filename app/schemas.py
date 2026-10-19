@@ -76,6 +76,8 @@ class IdCardRecord(_Out):
     """What was read off an Aadhaar or PAN card. Never the full number."""
 
     type: IdType
+    #: ["front"], ["back"] or ["front", "back"] -- which images were read.
+    sides: list[str] = Field(default_factory=list)
     full_name: str | None
     id_last4: str | None
     dob: str | None = None
@@ -120,16 +122,28 @@ class NameMatch(_Out):
     method: str
 
 
+class VerifiedDocument(_Out):
+    document_id: str
+    kind: str
+    side: str | None = None
+    filename: str
+
+
 class VerificationResult(_Out):
     verification_id: str
     subject_id: str
     subject_type: SubjectType
+    external_ref: str | None = None
     cv_document_id: str
-    id_document_id: str
+    documents: list[VerifiedDocument]
+    #: The overall verdict: the worst of the CV-vs-card comparisons.
     name_match: NameMatch
+    #: CV vs each card given, plus "aadhaar_vs_pan" when both were.
+    name_matches: dict[str, NameMatch]
     checks: list[dict]
     cv: CvRecord
-    id_card: IdCardRecord
+    #: "aadhaar" and/or "pan".
+    id_cards: dict[str, IdCardRecord]
 
 
 class ScreenRequest(BaseModel):

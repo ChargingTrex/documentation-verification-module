@@ -47,6 +47,8 @@ class Document(Base):
     subject_id: Mapped[str | None] = mapped_column(ForeignKey("subjects.id"), index=True, nullable=True)
     #: "cv", "aadhaar" or "pan"
     kind: Mapped[str] = mapped_column(String(20), index=True)
+    #: "front" or "back" for a card image; None for a CV.
+    side: Mapped[str | None] = mapped_column(String(10), nullable=True)
     #: Where the bytes went (a random name under UPLOAD_DIR).
     path: Mapped[str] = mapped_column(String(500))
     filename: Mapped[str] = mapped_column(String(255))
@@ -78,7 +80,9 @@ class Verification(Base):
     id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
     subject_id: Mapped[str] = mapped_column(ForeignKey("subjects.id"), index=True)
     cv_document_id: Mapped[str] = mapped_column(ForeignKey("documents.id"))
-    id_document_id: Mapped[str] = mapped_column(ForeignKey("documents.id"))
+    #: The ID card documents (Aadhaar front/back, PAN) as a list of ids; the
+    #: payload says which is which.
+    id_document_ids: Mapped[list] = mapped_column(JSON, default=list)
     name_score: Mapped[float] = mapped_column(Float)
     #: "match", "review" or "mismatch"
     verdict: Mapped[str] = mapped_column(String(20), index=True)

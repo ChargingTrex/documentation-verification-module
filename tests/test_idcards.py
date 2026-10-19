@@ -72,6 +72,43 @@ class TestFixtureCards:
         assert set(manifest) == {f"{card.key}.png" for card in CARDS}
 
 
+class TestMergeAadhaar:
+    def _card(self, name, card_dir):
+        return parse_aadhaar(StubEngine().read((card_dir / name).read_bytes(), name), engine_name="stub")
+
+    def test_front_and_back_become_one_card(self, card_dir):
+        from app.ocr.aadhaar import merge_aadhaar
+
+        merged = merge_aadhaar(self._card("aarav_aadhaar.png", card_dir), self._card("aarav_aadhaar_back.png", card_dir))
+
+        assert merged.sides == ["front", "back"]
+        assert merged.full_name == "Aarav Mehta" and merged.gender == "M" and merged.dob == "2003-03-12"
+        assert merged.address["pincode"] == "600017"
+        assert merged.id_last4 == AARAV[-4:]
+        assert merged.checks["aadhaar_sides_agree"] is True and merged.checks["aadhaar_checksum"] is True
+        assert merged.lines[0].startswith("front: ") and merged.lines[-1].startswith("back: ")
+
+    def test_sides_of_different_cards_disagree(self, card_dir):
+        from app.ocr.aadhaar import merge_aadhaar
+
+        merged = merge_aadhaar(self._card("sana_aadhaar.png", card_dir), self._card("aarav_aadhaar_back.png", card_dir))
+
+        assert merged.checks["aadhaar_sides_agree"] is False
+        assert merged.full_name == "Sana Qureshi"
+
+    def test_one_side_passes_through(self, card_dir):
+        from app.ocr.aadhaar import merge_aadhaar
+
+        assert merge_aadhaar(self._card("aarav_aadhaar.png", card_dir), None).sides == ["front"]
+        assert merge_aadhaar(None, self._card("aarav_aadhaar_back.png", card_dir)).sides == ["back"]
+
+    def test_no_side_is_an_error(self):
+        from app.ocr.aadhaar import merge_aadhaar
+
+        with pytest.raises(ValueError):
+            merge_aadhaar(None, None)
+
+
 class TestAadhaarHeuristics:
     def _parse(self, *lines):
         return parse_aadhaar([OcrLine(text=line, score=0.9) for line in lines])

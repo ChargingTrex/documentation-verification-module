@@ -31,10 +31,13 @@ class IdCardFacts:
     checks: dict[str, bool] = field(default_factory=dict)
     #: The OCR lines with ID numbers masked -- safe to store.
     lines: list[str] = field(default_factory=list)
+    #: Which sides of the card were read: ["front"], ["back"] or both.
+    sides: list[str] = field(default_factory=list)
 
     def as_dict(self) -> dict:
         return {
             "type": self.type,
+            "sides": self.sides,
             "full_name": self.full_name,
             "id_last4": self.id_last4,
             "dob": self.dob,

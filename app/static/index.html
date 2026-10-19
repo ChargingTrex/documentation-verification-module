@@ -67,10 +67,12 @@
           <select name="subject_type"><option value="student">Student</option><option value="employee">Employee</option></select></div>
         <div><label>Reference (PRN / employee id, optional)</label><input type="text" name="external_ref" placeholder="PRN2022CS001"></div>
         <div><label>CV (PDF or DOCX)</label><input type="file" name="cv" accept=".pdf,.docx" required></div>
-        <div><label>ID card (PNG, JPG, WEBP or PDF)</label><input type="file" name="id_card" accept=".png,.jpg,.jpeg,.webp,.pdf" required></div>
-        <div><label>ID type</label>
-          <select name="id_type"><option value="aadhaar">Aadhaar</option><option value="pan">PAN</option></select></div>
+        <div></div>
+        <div><label>Aadhaar — front (name, DOB)</label><input type="file" name="aadhaar_front" accept=".png,.jpg,.jpeg,.webp,.pdf"></div>
+        <div><label>Aadhaar — back (address)</label><input type="file" name="aadhaar_back" accept=".png,.jpg,.jpeg,.webp,.pdf"></div>
+        <div><label>PAN card</label><input type="file" name="pan" accept=".png,.jpg,.jpeg,.webp,.pdf"></div>
       </div>
+      <div class="legend">Give an Aadhaar (one or both sides), a PAN, or both cards. Images: PNG, JPG, WEBP or PDF.</div>
       <button type="submit" id="go">Verify</button>
       <div class="legend" id="health">Checking service…</div>
     </form>
@@ -80,15 +82,11 @@
 
   <div id="result" class="hidden">
     <div id="banner" class="banner"></div>
-    <div class="card names">
-      <div><h2>Name on CV</h2><div class="n" id="cvName"></div><div class="legend" id="cvNorm"></div></div>
-      <div class="vs">vs</div>
-      <div><h2>Name on ID</h2><div class="n" id="idName"></div><div class="legend" id="idNorm"></div></div>
-    </div>
+    <div id="names"></div>
     <div class="grid">
       <div class="card"><h2>From the CV</h2><table id="cvTable"></table>
         <div class="legend">Badges: <span class="badge llm">LLM</span> the local model read it · <span class="badge regex">Regex</span> a pattern read it · <span class="badge none">none</span> nothing found</div></div>
-      <div class="card"><h2>From the ID card</h2><table id="idTable"></table></div>
+      <div id="cards"></div>
     </div>
     <div class="card"><h2>Checks</h2><ul class="checks" id="checks"></ul></div>
     <div class="card"><details><summary>Raw JSON</summary><pre id="raw"></pre></details></div>
@@ -132,8 +130,8 @@
 
   function renderId(card) {
     const b = badge('ocr', card.ocr_engine);
-    $('idTable').innerHTML =
-      row('Type', esc(card.type.toUpperCase())) +
+    return (
+      row('Sides read', esc((card.sides || []).join(' + ') || '—')) +
       row('Name', esc(card.full_name) || '—', b) +
       row('Number', card.id_last4 ? `•••• ${esc(card.id_last4)}` : '—', b) +
       (card.dob ? row('Date of birth', esc(card.dob), b) : card.year_of_birth ? row('Year of birth', esc(card.year_of_birth), b) : '') +
@@ -142,16 +140,30 @@
       (card.address ? row('Address', esc(card.address.raw), b) : '') +
       (card.phones && card.phones.length ? row('Phones', list(card.phones), b) : '') +
       row('OCR confidence', card.ocr_confidence != null ? esc(card.ocr_confidence) : '—') +
-      row('Lines read', `<details><summary>${card.lines.length} lines</summary>${card.lines.map(esc).join('<br>')}</details>`);
+      row('Lines read', `<details><summary>${card.lines.length} lines</summary>${card.lines.map(esc).join('<br>')}</details>`)
+    );
   }
+
+  const VERDICT = {match: 'Names match', review: 'Needs review', mismatch: 'Names do not match'};
+  const LABEL = {aadhaar: 'Aadhaar', pan: 'PAN', aadhaar_vs_pan: 'Aadhaar vs PAN'};
 
   function render(body) {
     const nm = body.name_match;
     $('banner').className = `banner ${nm.verdict}`;
-    $('banner').innerHTML = `${esc({match: 'Names match', review: 'Needs review', mismatch: 'Names do not match'}[nm.verdict])} — score ${esc(nm.score)}<small>${esc(nm.method)} · verification ${esc(body.verification_id)} · subject ${esc(body.subject_id)}</small>`;
-    $('cvName').textContent = nm.cv || '—'; $('cvNorm').textContent = nm.cv_normalised || '';
-    $('idName').textContent = nm.id || '—'; $('idNorm').textContent = nm.id_normalised || '';
-    renderCv(body.cv); renderId(body.id_card);
+    $('banner').innerHTML = `${esc(VERDICT[nm.verdict])} — score ${esc(nm.score)}<small>${esc(nm.method)} · the worst of ${esc(Object.keys(body.id_cards).map(k => LABEL[k]).join(' and '))} · verification ${esc(body.verification_id)} · subject ${esc(body.subject_id)}</small>`;
+    $('names').innerHTML = Object.entries(body.name_matches).map(([key, m]) => {
+      const left = key === 'aadhaar_vs_pan' ? 'Name on Aadhaar' : 'Name on CV';
+      const right = key === 'aadhaar_vs_pan' ? 'Name on PAN' : `Name on ${LABEL[key]}`;
+      return `<div class="card names">
+        <div><h2>${esc(left)}</h2><div class="n">${esc(m.cv) || '—'}</div><div class="legend">${esc(m.cv_normalised || '')}</div></div>
+        <div class="vs"><span class="badge ${esc(m.verdict === 'match' ? 'regex' : m.verdict === 'review' ? 'ocr' : 'none')}">${esc(m.verdict)} · ${esc(m.score)}</span></div>
+        <div><h2>${esc(right)}</h2><div class="n">${esc(m.id) || '—'}</div><div class="legend">${esc(m.id_normalised || '')}</div></div>
+      </div>`;
+    }).join('');
+    renderCv(body.cv);
+    $('cards').innerHTML = Object.entries(body.id_cards).map(([kind, card]) =>
+      `<div class="card"><h2>From the ${esc(LABEL[kind])} card</h2><table>${renderId(card)}</table></div>`
+    ).join('');
     $('checks').innerHTML = body.checks.map(c => `<li class="${c.passed ? '' : 'fail'}">${esc(c.name)}${c.detail ? `<small>${esc(c.detail)}</small>` : ''}</li>`).join('');
     $('raw').textContent = JSON.stringify(body, null, 2);
     $('result').classList.remove('hidden');
