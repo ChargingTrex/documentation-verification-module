@@ -1,5 +1,5 @@
-# The API with PP-OCRv5 (PaddleOCR) built in. Linux gets a current
-# paddlepaddle; the macOS x86_64 pin in pyproject.toml does not apply here.
+# The API with PaddleOCR built in. Linux gets a current paddlepaddle and runs
+# the models on it; the macOS x86_64 pin in pyproject.toml does not apply here.
 FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -22,7 +22,8 @@ COPY app ./app
 RUN mkdir -p /srv/data/uploads
 
 ENV PATH="/srv/.venv/bin:$PATH" \
-    OCR_ENGINE=pp-ocrv5 \
+    OCR_ENGINE=paddleocr \
+    OCR_INFERENCE_ENGINE=paddle \
     LLM_BASE_URL=http://ollama:11434/v1 \
     UPLOAD_DIR=/srv/data/uploads \
     DATABASE_URL=sqlite:////srv/data/verifier.sqlite3

@@ -22,7 +22,7 @@ Optional pieces, each off or stubbed until installed:
 | Piece | Install | Then |
 | --- | --- | --- |
 | LLM reading of the CV | upgrade Ollama, `ollama pull gemma4:e4b` | `LLM_ENABLED=true` (default) |
-| OCR for ID cards | `uv sync --extra ocr` | `OCR_ENGINE=pp-ocrv5` (default) |
+| OCR for ID cards | `uv sync --extra ocr` | `OCR_ENGINE=paddleocr` (default) |
 | spaCy similarity | `uv sync --extra nlp && uv run python -m spacy download en_core_web_md` | `MATCHING_BACKEND=auto` |
 | PaddleOCR-VL 1.5 (benchmark only) | `docker compose --profile vl up ocr-vl` | `OCR_ENGINE=paddleocr-vl` |
 
@@ -30,8 +30,11 @@ Without any of them the service still works: regex extraction, TF-IDF
 similarity, and the stub OCR engine (fixture text).
 
 **Intel Mac note.** PaddlePaddle stopped shipping macOS x86_64 wheels after
-3.0.0, which `pyproject.toml` pins for that platform. PaddleOCR-VL needs a
-newer PaddlePaddle and so runs only in Docker on an Intel Mac.
+3.0.0, and the current PP-OCR models do not load on 3.0.0. PaddleOCR ships
+the same models in ONNX form, so on an Intel Mac the pipeline runs them on
+onnxruntime (`OCR_INFERENCE_ENGINE=auto` picks this; ~9 s per card on a
+2018 i7, first run downloads the models). PaddleOCR-VL needs a newer
+PaddlePaddle and so runs only in Docker on an Intel Mac.
 
 ## API
 
@@ -47,6 +50,25 @@ newer PaddlePaddle and so runs only in Docker on an Intel Mac.
 Every CV field carries its source in `field_sources`: `"llm"` (the model
 read it), `"regex"` (a pattern read it) or `"none"`. Emails and phones are
 always regex's when it found any; the model only fills gaps.
+
+## OCR engine choice (measured)
+
+Three real scans (Aadhaar front, Aadhaar back, PAN) run through
+`PaddleOCR` on onnxruntime, CPU, orientation models off, then the parsers.
+Fields checked: name, last four digits, date of birth, PIN code.
+
+| Models | Fields right | s/image |
+| --- | --- | --- |
+| PaddleOCR 3.7 defaults (PP-OCRv6 medium) | 8 / 8 | 10.0 |
+| PP-OCRv5_mobile_det + PP-OCRv5_mobile_rec | 7 / 8 | 4.9 |
+| PP-OCRv5_server_det + PP-OCRv5_server_rec | 6 / 8 | 51.4 |
+| PP-OCRv5_mobile_det + en_PP-OCRv5_mobile_rec | 5 / 8 | 4.4 |
+
+The defaults stay. The orientation models (`OCR_ORIENTATION=true`) tripled
+the time and broke the PAN read on these scans, so they are off unless a
+deployment sees rotated uploads. PaddleOCR-VL 1.5 (`docker compose --profile
+vl up ocr-vl`, then `uv run python -m bench.ocr_bench`) has not been run on
+this machine yet: it needs the ~8 GB Linux image.
 
 ## Tests
 

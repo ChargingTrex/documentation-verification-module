@@ -32,10 +32,20 @@ class Settings(BaseSettings):
     max_upload_bytes: int = 10 * 1024 * 1024
 
     # --- OCR ---
-    #: pp-ocrv5 (in-process PaddleOCR), paddleocr-vl (HTTP to the ocr-vl
+    #: paddleocr (in-process PP-OCR), paddleocr-vl (HTTP to the ocr-vl
     #: container), or stub (fixture text; the default for tests).
-    ocr_engine: str = "pp-ocrv5"
+    ocr_engine: str = "paddleocr"
     ocr_lang: str = "en"
+    #: auto -> onnxruntime on an Intel Mac, paddle elsewhere; or name one.
+    ocr_inference_engine: str = "auto"
+    #: Run the document/text-line orientation models before recognition.
+    #: Off: on the real scans tried they cost 3x the time and mangled a PAN
+    #: card that read perfectly without them. Turn on for rotated uploads.
+    ocr_orientation: bool = False
+    #: PaddleOCR model names; unset -> PaddleOCR's defaults for the version
+    #: installed. e.g. PP-OCRv5_mobile_det / PP-OCRv5_mobile_rec.
+    ocr_text_detection_model: str | None = None
+    ocr_text_recognition_model: str | None = None
     ocr_vl_base_url: str = "http://localhost:8118"
 
     # --- LLM (local Ollama, OpenAI-compatible) ---

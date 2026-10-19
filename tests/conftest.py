@@ -60,6 +60,16 @@ def sample_resume_dir(tmp_path_factory) -> Path:
 
 
 @pytest.fixture(scope="session")
+def card_dir(tmp_path_factory) -> Path:
+    """Synthetic Aadhaar/PAN card PNGs with their lines embedded, rendered once."""
+    from tests.fixtures.make_idcards import render_cards
+
+    out = tmp_path_factory.mktemp("idcards")
+    render_cards(out)
+    return out
+
+
+@pytest.fixture(scope="session")
 def engine() -> MatchingEngine:
     """
     The engine on whichever backend this machine has.

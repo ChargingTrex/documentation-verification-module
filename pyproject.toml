@@ -22,10 +22,12 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# PP-OCRv5 via PaddleOCR. paddlepaddle 3.0.0 is the last release with a macOS
-# x86_64 wheel; Linux (Docker) may use any >=3.0.0.
+# PaddleOCR's PP-OCR pipeline. paddlepaddle 3.0.0 is the last release with a
+# macOS x86_64 wheel and cannot load the current models, so on an Intel Mac
+# the pipeline runs its ONNX models on onnxruntime (OCR_INFERENCE_ENGINE=auto).
 ocr = [
     "paddleocr>=3.7",
+    "onnxruntime>=1.20",
     "paddlepaddle==3.0.0; sys_platform == 'darwin' and platform_machine == 'x86_64'",
     "paddlepaddle>=3.3; sys_platform != 'darwin' or platform_machine != 'x86_64'",
 ]
@@ -51,3 +53,9 @@ filterwarnings = [
 
 [tool.uv]
 package = false
+# Resolve to versions that have wheels for an Intel Mac too (onnxruntime
+# dropped macOS x86_64 wheels in 1.24).
+required-environments = [
+    "sys_platform == 'darwin' and platform_machine == 'x86_64'",
+    "sys_platform == 'linux' and platform_machine == 'x86_64'",
+]

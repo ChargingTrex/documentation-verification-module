@@ -85,6 +85,8 @@ class IdCardRecord(_Out):
     address: Address | None = None
     phones: list[str] = Field(default_factory=list)
     ocr_engine: str
+    #: The models and runtime behind it, e.g. "PP-OCRv6_medium_det/PP-OCRv6_medium_rec via onnxruntime".
+    ocr_detail: str | None = None
     ocr_confidence: float | None = None
     #: Which checks ran, e.g. {"aadhaar_checksum": true}.
     checks: dict[str, bool] = Field(default_factory=dict)

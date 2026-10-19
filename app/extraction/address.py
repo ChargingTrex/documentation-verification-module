@@ -55,7 +55,10 @@ _HEADER = re.compile(
 
 def describe_address(raw: str) -> dict:
     """Structure an address string: the raw text, its PIN code and its state."""
-    raw = " ".join((raw or "").replace("\n", ", ").split()).strip(" ,")
+    raw = " ".join((raw or "").replace("\n", ", ").split())
+    # OCR lines and labels often end in a comma already: "Street,", ", " -> one comma.
+    raw = re.sub(r"\s*,(?:\s*,)+", ",", raw)
+    raw = re.sub(r"\s+,", ",", raw).strip(" ,")
     pin = _PIN.search(raw)
     state = _STATE.search(raw)
     canonical = None

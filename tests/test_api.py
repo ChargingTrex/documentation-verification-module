@@ -2,6 +2,9 @@
 
 from pathlib import Path
 
+import pytest
+
+from tests.fixtures.make_idcards import AARAV, spaced
 from tests.fixtures.samples import RELEVANT_KEYS, SAMPLE_JOB_DESCRIPTION
 
 FIXTURES = Path(__file__).parent / "fixtures" / "resumes"
@@ -88,6 +91,60 @@ class TestCvUpload:
 
     def test_an_unknown_document_is_404(self, api):
         assert api.get("/documents/missing").status_code == 404
+
+
+class TestIdUpload:
+    @pytest.fixture(autouse=True)
+    def _cards(self, card_dir):
+        self.cards = card_dir
+
+    def _upload(self, api, name, **form):
+        with (self.cards / name).open("rb") as handle:
+            return api.post("/documents/id", files={"file": (name, handle, "image/png")}, data=form)
+
+    def test_an_aadhaar_card_comes_back_parsed_and_masked(self, api):
+        response = self._upload(api, "aarav_aadhaar.png", type="aadhaar", subject_type="student")
+
+        assert response.status_code == 200, response.text
+        body = response.json()
+        card = body["id_card"]
+        assert body["kind"] == "aadhaar" and body["subject_id"]
+        assert card["full_name"] == "Aarav Mehta"
+        assert card["dob"] == "2003-03-12"
+        assert card["gender"] == "M"
+        assert card["id_last4"] == AARAV[-4:]
+        assert card["checks"]["aadhaar_checksum"] is True
+        assert card["ocr_engine"] == "stub"
+        assert AARAV not in response.text and spaced(AARAV) not in response.text
+
+    def test_a_pan_card_comes_back_parsed(self, api):
+        card = self._upload(api, "aarav_pan.png", type="pan").json()["id_card"]
+
+        assert card["full_name"] == "AARAV MEHTA"
+        assert card["father_name"] == "RAJESH MEHTA"
+        assert card["id_last4"] == "234F"
+
+    def test_the_stored_extraction_is_the_ocr_record(self, api):
+        uploaded = self._upload(api, "aarav_pan.png", type="pan").json()
+
+        document = api.get(f"/documents/{uploaded['document_id']}").json()
+
+        assert document["extraction_source"] == "ocr"
+        assert document["extraction_engine"] == "stub"
+        assert "ABCPM1234F" not in str(document)
+
+    def test_an_unknown_type_is_422(self, api):
+        assert self._upload(api, "aarav_pan.png", type="passport").status_code == 422
+
+    def test_a_wrong_file_type_is_400(self, api):
+        response = api.post("/documents/id", files={"file": ("card.txt", b"x", "text/plain")}, data={"type": "pan"})
+
+        assert response.status_code == 400
+
+    def test_an_unreadable_image_is_422(self, api):
+        response = api.post("/documents/id", files={"file": ("card.png", b"nonsense", "image/png")}, data={"type": "pan"})
+
+        assert response.status_code == 422
 
 
 class TestScreen:

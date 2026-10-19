@@ -1,4 +1,4 @@
-# Local stack: the API (with PP-OCRv5), Ollama for the LLM, and -- only when
+# Local stack: the API (with PaddleOCR), Ollama for the LLM, and -- only when
 # benchmarking -- the PaddleOCR-VL server (profile `vl`, see Phase 2).
 #
 #   docker compose up api ollama
@@ -13,7 +13,7 @@ services:
     environment:
       LLM_ENABLED: "true"
       LLM_MODEL: ${LLM_MODEL:-gemma4:e4b}
-      OCR_ENGINE: ${OCR_ENGINE:-pp-ocrv5}
+      OCR_ENGINE: ${OCR_ENGINE:-paddleocr}
       OCR_VL_BASE_URL: http://ocr-vl:8118
     volumes:
       - ./data:/srv/data
