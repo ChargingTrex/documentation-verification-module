@@ -30,7 +30,8 @@ only fills gaps. `agreement` shows where regex and the model disagree.
 ## Quick start
 
 ```bash
-git clone <this repo> && cd document-verifier
+git clone https://github.com/ChargingTrex/documentation-verification-module.git
+cd documentation-verification-module
 uv sync --extra dev
 uv run uvicorn app.main:app --reload --port 8010
 open http://localhost:8010         # the UI;  /docs for the API
@@ -161,8 +162,10 @@ ocr_vl_server/  the PaddleOCR-VL container's HTTP front
 Build plan and checkpoints: [AGENTS.md](AGENTS.md). Contributing:
 [CONTRIBUTING.md](CONTRIBUTING.md).
 
-## Origin
+## Origin and license
 
 The resume readers and the matching engine were ported from a college
 placement portal's `matching` app; the OCR, card parsers and verification
 are new. Built with Claude Code.
+
+Licensed under the GNU General Public License v3.0 — see [LICENSE](LICENSE).

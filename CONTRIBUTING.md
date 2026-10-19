@@ -8,8 +8,8 @@ make the readers more accurate on real documents are the most valuable.
 ## Set up
 
 ```bash
-git clone <this repo>
-cd document-verifier
+git clone https://github.com/ChargingTrex/documentation-verification-module.git
+cd documentation-verification-module
 uv sync --extra dev          # base + tests; no OCR or LLM needed
 uv run pytest                # should be green
 uv run uvicorn app.main:app --reload --port 8010
@@ -62,6 +62,9 @@ bench/            OCR engine benchmark
 3. One commit per change, message in the imperative, saying why.
 4. Open a pull request. Say what document shape or provider you tested on,
    without pasting the document.
+
+Contributions are accepted under the project's license, GPL-3.0 (see
+`LICENSE`).
 
 ## Good first contributions
 
