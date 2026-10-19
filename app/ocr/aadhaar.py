@@ -15,7 +15,17 @@ import re
 from app.extraction.address import describe_address
 from app.extraction.facts import find_phones
 from app.ocr import verhoeff
-from app.ocr.cards import DATE, LATIN_NAME, IdCardFacts, clean_name, confidence, iso_date, looks_like, texts
+from app.ocr.cards import (
+    DATE,
+    LATIN_NAME,
+    IdCardFacts,
+    clean_name,
+    confidence,
+    detect_card_type,
+    iso_date,
+    looks_like,
+    texts,
+)
 from app.ocr.engine import OcrLine
 
 #: What the card prints besides the holder's details; a line resembling one
@@ -67,6 +77,9 @@ def parse_aadhaar(lines: list[OcrLine], engine_name: str = "unknown", engine_det
         type="aadhaar", ocr_engine=engine_name, ocr_detail=engine_detail, ocr_confidence=confidence(lines)
     )
     facts.lines = [mask_numbers(row) for row in texts(lines, min_score=None)]
+    facts.detected_type = detect_card_type(lines)
+    if facts.detected_type is not None:
+        facts.checks["card_type_matches"] = facts.detected_type == "aadhaar"
     joined = "\n".join(rows_)
 
     # --- number ---
@@ -158,7 +171,12 @@ def merge_aadhaar(front: IdCardFacts | None, back: IdCardFacts | None) -> IdCard
     merged.ocr_confidence = round(sum(scores) / len(scores), 3) if scores else None
     merged.lines = [f"front: {line}" for line in front.lines] + [f"back: {line}" for line in back.lines]
 
+    merged.detected_type = front.detected_type or back.detected_type
     merged.checks = {**back.checks, **front.checks}
+    if "card_type_matches" in front.checks or "card_type_matches" in back.checks:
+        merged.checks["card_type_matches"] = front.checks.get("card_type_matches", True) and back.checks.get(
+            "card_type_matches", True
+        )
     merged.checks["aadhaar_number_found"] = bool(front.id_last4 or back.id_last4)
     if "aadhaar_checksum" in front.checks or "aadhaar_checksum" in back.checks:
         merged.checks["aadhaar_checksum"] = bool(

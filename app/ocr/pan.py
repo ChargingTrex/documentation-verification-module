@@ -18,6 +18,7 @@ from app.ocr.cards import (
     IdCardFacts,
     clean_name,
     confidence,
+    detect_card_type,
     iso_date,
     looks_like,
     texts,
@@ -81,6 +82,9 @@ def parse_pan(lines: list[OcrLine], engine_name: str = "unknown", engine_detail:
     facts = IdCardFacts(type="pan", ocr_engine=engine_name, ocr_detail=engine_detail, ocr_confidence=confidence(lines))
     facts.lines = [mask_pan(row) for row in texts(lines, min_score=None)]
     facts.sides = ["front"]
+    facts.detected_type = detect_card_type(lines)
+    if facts.detected_type is not None:
+        facts.checks["card_type_matches"] = facts.detected_type == "pan"
     joined = "\n".join(rows_)
 
     if pan := PAN.search(joined):

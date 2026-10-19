@@ -17,6 +17,8 @@ DATE = re.compile(r"(?<!\d)(\d{2})[/\-.](\d{2})[/\-.]((?:19|20)\d{2})(?!\d)")
 @dataclass
 class IdCardFacts:
     type: str
+    #: What the printed headings say the card is, or None when unclear.
+    detected_type: str | None = None
     full_name: str | None = None
     id_last4: str | None = None
     dob: str | None = None
@@ -37,6 +39,7 @@ class IdCardFacts:
     def as_dict(self) -> dict:
         return {
             "type": self.type,
+            "detected_type": self.detected_type,
             "sides": self.sides,
             "full_name": self.full_name,
             "id_last4": self.id_last4,
@@ -106,3 +109,51 @@ def looks_like(line: str, phrases: tuple[str, ...], threshold: int = 80) -> bool
 def uppercase_share(line: str) -> float:
     letters = [ch for ch in line if ch.isalpha()]
     return sum(ch.isupper() for ch in letters) / len(letters) if letters else 0.0
+
+
+# --- which card is this? ------------------------------------------------------
+# The printed headings say what the card is. They are read here for that one
+# purpose, and never as a name.
+
+PAN_SIGNS = (
+    "INCOME TAX DEPARTMENT",
+    "GOVT OF INDIA",
+    "PERMANENT ACCOUNT NUMBER",
+    "PERMANENT ACCOUNT NUMBER CARD",
+    "FATHERS NAME",
+    "SIGNATURE",
+)
+AADHAAR_SIGNS = (
+    "GOVERNMENT OF INDIA",
+    "UNIQUE IDENTIFICATION AUTHORITY OF INDIA",
+    "MERA AADHAAR MERI PEHCHAAN",
+    "AADHAAR",
+    "AADHAR",
+    "YEAR OF BIRTH",
+    "UIDAI",
+)
+_PAN_NUMBER = re.compile(r"(?<![A-Z0-9])[A-Z]{5}\d{4}[A-Z](?![A-Z0-9])")
+_AADHAAR_NUMBER = re.compile(r"(?<!\d)(?<!\d[ \t])\d{4}[ \t]?\d{4}[ \t]?\d{4}(?![ \t]?\d)")
+_DEVANAGARI_PAN = re.compile(r"आयकर|विभाग|स्थायी|लेखा|संख्या")
+_DEVANAGARI_AADHAAR = re.compile(r"आधार|भारत\s*सरकार|मेरा\s*आधार|मेरी\s*पहचान")
+
+
+def detect_card_type(lines: list[OcrLine]) -> str | None:
+    """
+    "pan", "aadhaar", or None when the text says neither.
+
+    Each printed sign counts one; the numbers' own shapes count two, since a
+    PAN pattern or a 12-digit group is rarely on the other card. Ties and
+    silence give None: the declared type stands and nothing is flagged.
+    """
+    rows_ = texts(lines, min_score=None)
+    joined = "\n".join(rows_)
+    pan = sum(looks_like(row, PAN_SIGNS) for row in rows_)
+    aadhaar = sum(looks_like(row, AADHAAR_SIGNS) for row in rows_)
+    # "GOVT OF INDIA" and "GOVERNMENT OF INDIA" resemble each other; the
+    # Devanagari headings and the number shapes settle it.
+    pan += 2 * bool(_PAN_NUMBER.search(joined)) + bool(_DEVANAGARI_PAN.search(joined))
+    aadhaar += 2 * bool(_AADHAAR_NUMBER.search(joined)) + bool(_DEVANAGARI_AADHAAR.search(joined))
+    if pan == aadhaar:
+        return None
+    return "pan" if pan > aadhaar else "aadhaar"

@@ -119,6 +119,15 @@ class TestBothCards:
         assert body["name_matches"]["aadhaar_vs_pan"]["verdict"] == "match"
 
 
+class TestWrongSlot:
+    def test_a_pan_in_the_aadhaar_slot_is_flagged_not_hidden(self, api, card_dir, llm_reads_the_cv):
+        body = _verify(api, card_dir, aadhaar_front="aarav_pan.png").json()
+
+        card = body["id_cards"]["aadhaar"]
+        assert card["detected_type"] == "pan"
+        assert {c["name"]: c["passed"] for c in body["checks"]}["card_type_matches"] is False
+
+
 class TestInputs:
     def test_no_card_at_all_is_422(self, api, card_dir):
         assert _verify(api, card_dir).status_code == 422

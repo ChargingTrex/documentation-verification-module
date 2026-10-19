@@ -76,6 +76,9 @@ class IdCardRecord(_Out):
     """What was read off an Aadhaar or PAN card. Never the full number."""
 
     type: IdType
+    #: What the printed headings say the card is; None when unclear. A
+    #: `card_type_matches: false` check means it was uploaded in the wrong slot.
+    detected_type: IdType | None = None
     #: ["front"], ["back"] or ["front", "back"] -- which images were read.
     sides: list[str] = Field(default_factory=list)
     full_name: str | None

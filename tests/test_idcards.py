@@ -222,6 +222,56 @@ class TestPanHeuristics:
         assert facts.full_name == "AARAV MEHTA"
 
 
+class TestDetectCardType:
+    def _lines(self, *rows):
+        return [OcrLine(text=row, score=0.9) for row in rows]
+
+    def test_every_fixture_card_is_typed_from_its_text(self, card_dir):
+        from app.ocr.cards import detect_card_type
+
+        for card in CARDS:
+            lines = StubEngine().read((card_dir / f"{card.key}.png").read_bytes(), f"{card.key}.png")
+            assert detect_card_type(lines) == card.type, card.key
+
+    def test_the_real_pan_headings_joined_and_garbled(self):
+        from app.ocr.cards import detect_card_type
+
+        assert detect_card_type(self._lines("lNCOME TAX DEPARTMENT GOVT.OFINDIA", "Permanent Account Number Card",
+                                            "/Father's Name", "NEELAMEGAM")) == "pan"
+
+    def test_an_aadhaar_back_is_still_an_aadhaar(self):
+        from app.ocr.cards import detect_card_type
+
+        assert detect_card_type(self._lines("Unique Identification Authority of India", "Address:",
+                                            "12 Gandhi Street 600017", "help@uidai.gov.in")) == "aadhaar"
+
+    def test_nothing_recognisable_is_none(self):
+        from app.ocr.cards import detect_card_type
+
+        assert detect_card_type(self._lines("Aarav Mehta", "DOB: 12/03/2003")) is None
+
+    def test_a_pan_uploaded_as_aadhaar_is_flagged(self, card_dir):
+        lines = StubEngine().read((card_dir / "aarav_pan.png").read_bytes(), "aarav_pan.png")
+
+        facts = parse_aadhaar(lines).as_dict()
+
+        assert facts["detected_type"] == "pan"
+        assert facts["checks"]["card_type_matches"] is False
+
+    def test_an_aadhaar_uploaded_as_pan_is_flagged(self, card_dir):
+        lines = StubEngine().read((card_dir / "aarav_aadhaar.png").read_bytes(), "aarav_aadhaar.png")
+
+        facts = parse_pan(lines).as_dict()
+
+        assert facts["detected_type"] == "aadhaar"
+        assert facts["checks"]["card_type_matches"] is False
+
+    def test_the_right_slot_passes(self, card_dir):
+        lines = StubEngine().read((card_dir / "aarav_pan.png").read_bytes(), "aarav_pan.png")
+
+        assert parse_pan(lines).as_dict()["checks"]["card_type_matches"] is True
+
+
 class TestRows:
     def test_boxes_on_one_row_are_joined_left_to_right(self):
         lines = [

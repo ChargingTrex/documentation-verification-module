@@ -132,6 +132,7 @@
     const b = badge('ocr', card.ocr_engine);
     return (
       row('Sides read', esc((card.sides || []).join(' + ') || '—')) +
+      row('Detected type', card.detected_type ? `${esc(card.detected_type.toUpperCase())}${card.detected_type === card.type ? '' : ' <span class="badge none">does not match the slot</span>'}` : '<span class="legend">unclear</span>') +
       row('Name', esc(card.full_name) || '—', b) +
       row('Number', card.id_last4 ? `•••• ${esc(card.id_last4)}` : '—', b) +
       (card.dob ? row('Date of birth', esc(card.dob), b) : card.year_of_birth ? row('Year of birth', esc(card.year_of_birth), b) : '') +
