@@ -15,8 +15,19 @@ import re
 from app.extraction.address import describe_address
 from app.extraction.facts import find_phones
 from app.ocr import verhoeff
-from app.ocr.cards import DATE, LATIN_NAME, IdCardFacts, clean_name, confidence, iso_date, texts
+from app.ocr.cards import DATE, LATIN_NAME, IdCardFacts, clean_name, confidence, iso_date, looks_like, texts
 from app.ocr.engine import OcrLine
+
+#: What the card prints besides the holder's details; a line resembling one
+#: of these, even garbled, is never a name.
+PRINTED = (
+    "GOVERNMENT OF INDIA",
+    "UNIQUE IDENTIFICATION AUTHORITY OF INDIA",
+    "MERA AADHAAR MERI PEHCHAAN",
+    "AADHAAR",
+    "YEAR OF BIRTH",
+    "DATE OF BIRTH",
+)
 
 # Twelve digits in 4-4-4 (or run together). Neither preceded nor followed by
 # another digit group, so the last twelve digits of a 16-digit VID do not match.
@@ -38,7 +49,12 @@ _LABEL = re.compile(
 
 
 def _is_name_line(line: str) -> bool:
-    return bool(LATIN_NAME.match(line)) and not _LABEL.search(line) and len(line) >= 3
+    return (
+        bool(LATIN_NAME.match(line))
+        and len(line) >= 3
+        and not _LABEL.search(line)
+        and not looks_like(line, PRINTED)
+    )
 
 
 def mask_numbers(line: str) -> str:

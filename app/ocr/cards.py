@@ -85,3 +85,24 @@ def iso_date(match: re.Match) -> str | None:
 def clean_name(value: str) -> str | None:
     value = re.sub(r"\s+", " ", value).strip(" :.-")
     return value if LATIN_NAME.match(value) else None
+
+
+def looks_like(line: str, phrases: tuple[str, ...], threshold: int = 80) -> bool:
+    """
+    Does the line resemble one of the printed phrases, OCR slips included?
+
+    A regex on "income tax" misses "lNCOME TAX" or "INCOMETAX DEPARTMENT
+    GOVT.OFINDIA"; a fuzzy partial match does not. Used to keep a card's
+    printed headings out of the name slot.
+    """
+    from rapidfuzz import fuzz
+
+    text = re.sub(r"[^A-Za-z ]+", " ", line).upper().strip()
+    if len(text) < 4:
+        return False
+    return any(fuzz.partial_ratio(text, phrase) >= threshold for phrase in phrases)
+
+
+def uppercase_share(line: str) -> float:
+    letters = [ch for ch in line if ch.isalpha()]
+    return sum(ch.isupper() for ch in letters) / len(letters) if letters else 0.0

@@ -38,10 +38,12 @@ class Settings(BaseSettings):
     ocr_lang: str = "en"
     #: auto -> onnxruntime on an Intel Mac, paddle elsewhere; or name one.
     ocr_inference_engine: str = "auto"
-    #: Run the document/text-line orientation models before recognition.
-    #: Off: on the real scans tried they cost 3x the time and mangled a PAN
-    #: card that read perfectly without them. Turn on for rotated uploads.
-    ocr_orientation: bool = False
+    #: Detect and undo a rotated document before recognition. Cheap and safe
+    #: on the real scans tried.
+    ocr_orientation: bool = True
+    #: Also classify each text line's orientation. Off: on a real PAN scan it
+    #: flipped lines in the top half and lost the name and number.
+    ocr_textline_orientation: bool = False
     #: PaddleOCR model names; unset -> PaddleOCR's defaults for the version
     #: installed. e.g. PP-OCRv5_mobile_det / PP-OCRv5_mobile_rec.
     ocr_text_detection_model: str | None = None

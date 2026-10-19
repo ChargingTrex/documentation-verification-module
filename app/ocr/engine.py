@@ -174,7 +174,7 @@ class PaddleOCREngine:
             lang=self.lang,
             use_doc_orientation_classify=orientation,
             use_doc_unwarping=False,
-            use_textline_orientation=orientation,
+            use_textline_orientation=orientation and settings.ocr_textline_orientation,
             device="cpu",
             engine=self.inference_engine,
             **models,

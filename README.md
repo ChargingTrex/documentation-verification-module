@@ -68,9 +68,12 @@ Fields checked: name, last four digits, date of birth, PIN code.
 | PP-OCRv5_server_det + PP-OCRv5_server_rec | 6 / 8 | 51.4 |
 | PP-OCRv5_mobile_det + en_PP-OCRv5_mobile_rec | 5 / 8 | 4.4 |
 
-The defaults stay. The orientation models (`OCR_ORIENTATION=true`) tripled
-the time and broke the PAN read on these scans, so they are off unless a
-deployment sees rotated uploads. PaddleOCR-VL 1.5 (`docker compose --profile
+The defaults stay. Of PaddleOCR's two orientation models, document
+rotation detection (`OCR_ORIENTATION=true`, the default) is harmless; the
+text-line orientation classifier (`OCR_TEXTLINE_ORIENTATION`, off) flipped
+lines in the top half of the PAN scan and lost the name and number, so it
+stays off. A card's printed headings ("INCOME TAX DEPARTMENT", "GOVT. OF
+INDIA") are fuzzy-rejected as names even when OCR garbles them. PaddleOCR-VL 1.5 (`docker compose --profile
 vl up ocr-vl`, then `uv run python -m bench.ocr_bench`) has not been run on
 this machine yet: it needs the ~8 GB Linux image.
 

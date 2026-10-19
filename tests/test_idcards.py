@@ -131,6 +131,12 @@ class TestAadhaarHeuristics:
 
         assert facts.full_name == "Sana Qureshi"
 
+    @pytest.mark.parametrize("header", ["GOVERNMENTOF INDIA", "Govemment of lndia", "Unique ldentification Authority"])
+    def test_a_garbled_heading_is_never_the_name(self, header):
+        facts = self._parse(header, "Sana Qureshi", "DOB: 01/01/2000")
+
+        assert facts.full_name == "Sana Qureshi"
+
     def test_the_hindi_line_is_skipped(self):
         facts = self._parse("कबीर नायर", "Kabir Nair", "Year of Birth: 2004", "MALE")
 
@@ -175,6 +181,45 @@ class TestPanHeuristics:
         facts = self._parse("Name AARAV MEHTA", "Father's Name RAJESH MEHTA")
 
         assert facts.full_name == "AARAV MEHTA" and facts.father_name == "RAJESH MEHTA"
+
+    @pytest.mark.parametrize(
+        "header",
+        [
+            "INCOME TAX DEPARTMENT GOVT.OFINDIA",   # two headings joined into one row
+            "lNCOME TAX DEPARTMENT",                 # a lowercase L for the I
+            "INCOMETAX DEPARTMENT",
+            "GOVT OFINDIA",
+            "Permanent Account Number Card",
+            "PERMANENT ACCOUNTNUMBER CARD",
+        ],
+    )
+    def test_a_printed_heading_is_never_the_name_however_garbled(self, header):
+        facts = self._parse(header, "BEHPM9319H", "/Father's Name", "NEELAMEGAM", "06/06/1992 /Signature")
+
+        assert facts.full_name != header.strip()
+        assert facts.father_name == "NEELAMEGAM"
+
+    def test_with_the_name_label_lost_the_line_above_the_father_label_is_the_name(self):
+        """What a poor read of the real card looks like: garbage at the top,
+        the father's label intact, the name just above it."""
+        facts = self._parse("CEN OV IA", "ge", "erar", "E19H", "PRAVEEN BALAJI N", "/Father's Name",
+                            "NEELAMEGAM", "06/06/1992 R/Signature")
+
+        assert facts.full_name == "PRAVEEN BALAJI N"
+        assert facts.father_name == "NEELAMEGAM"
+
+    def test_garbage_capitals_alone_do_not_become_a_name_over_the_father_anchor(self):
+        facts = self._parse("CEN OV IA", "erar", "/Father's Name", "NEELAMEGAM")
+
+        # Nothing name-like sits right above the father label, so the old-layout
+        # fallback runs; the father's line is excluded from it.
+        assert facts.father_name == "NEELAMEGAM"
+        assert facts.full_name != "NEELAMEGAM"
+
+    def test_lowercase_lines_are_not_pan_names(self):
+        facts = self._parse("some lowercase words", "Name", "AARAV MEHTA")
+
+        assert facts.full_name == "AARAV MEHTA"
 
 
 class TestRows:
