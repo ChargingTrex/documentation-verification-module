@@ -19,7 +19,8 @@ API key if that suits your setup.
 | --- | --- |
 | Read the CV | PDF/DOCX → text (pdfium, then PyPDF2); regex readers for email, phone, address, name, experience, education level; a local or hosted LLM for the structured reading (education and experience entries, skills, address) |
 | Read the cards | PaddleOCR → lines; Aadhaar parser (name, DOB, gender, number with Verhoeff checksum, address from the back) and PAN parser (name, father's name, DOB, PAN format). The card's printed headings identify its type; they never become a name |
-| Compare | normalised names, token-set similarity, initials capped at "review"; CV vs every card, cards vs each other; dates of birth across all documents |
+| Read marksheets and transcripts | 10th, 12th and college grade cards, image or PDF: board / university, year, name, roll number (last four), subject rows, total, percentage (printed *and* recomputed from the rows), CGPA and SGPAs, result. Regex readers always, the LLM when on |
+| Compare | normalised names, token-set similarity, initials capped at "review"; CV vs every document, cards vs each other. **Three-way figure checks** -- the registration form's claim, the CV's claim, the document -- for CGPA, 10th and 12th marks and years, date of birth; plus year ordering (10th < 12th < degree) and a sheet whose rows do not add up to its printed percentage |
 | Store | subjects, documents, extractions, verifications — SQLite or PostgreSQL. Only the last four digits of any ID number are kept |
 | Show | a one-page UI: verdict, every field with a badge saying what read it (**LLM** / **Regex** / **OCR**), the checks, the raw JSON |
 
@@ -94,10 +95,11 @@ default, a local Ollama, sends nothing anywhere.
 | Method | Path | What |
 | --- | --- | --- |
 | `GET` | `/health` | which OCR engine, LLM and similarity backend are live |
-| `POST` | `/verify` | `cv` + any of `aadhaar_front`, `aadhaar_back`, `pan` → verdict per card and overall |
+| `POST` | `/verify` | `cv` + any of `aadhaar_front`, `aadhaar_back`, `pan`, `marksheet_10`, `marksheet_12`, `transcript` (+ `form` JSON) → verdict and checks |
 | `POST` | `/verify/documents` | the same for documents uploaded earlier |
 | `POST` | `/documents/cv` | read a CV on its own → the CV record |
 | `POST` | `/documents/id` | read one card (`type`, `side`) → the card record |
+| `POST` | `/documents/academic` | read a marksheet or transcript (`type`) → the academic record |
 | `GET` | `/documents/{id}`, `/subjects/{id}`, `/verifications/{id}` | read back |
 | `POST` | `/match/screen` | rank resume texts against a job description (bulk screening) |
 
@@ -106,16 +108,23 @@ What goes into the database, field by field: [docs/DATA_MODEL.md](docs/DATA_MODE
 
 ```bash
 curl -F cv=@resume.pdf -F aadhaar_front=@front.jpg -F aadhaar_back=@back.jpg -F pan=@pan.jpg \
+     -F marksheet_10=@tenth.jpg -F marksheet_12=@twelfth.jpg -F transcript=@grades.pdf \
+     -F 'form={"full_name":"Aarav Mehta","cgpa":8.4,"tenth_percentage":92,"twelfth_percentage":91}' \
      -F subject_type=student -F external_ref=PRN2022CS001 http://localhost:8010/verify
 ```
 
+`form` is what the student typed into the placement portal's registration
+form; with it every figure is checked three ways -- form claim, CV claim,
+document -- and the reply names the pairs that disagree
+(`"form 9.1 vs CV 8.4 vs transcript 8.4 -- differ: form/CV, form/transcript"`).
+
 ## Privacy
 
-- Uploaded files go to `data/uploads/<cv|aadhaar|pan>/` under random
-  names. The folders are in git; their contents are ignored. Never commit a
-  real document.
-- ID numbers are stored as the last four characters only; the OCR audit
-  lines are masked before they are kept.
+- Uploaded files go to `data/uploads/<cv|aadhaar|pan|marksheet_10|marksheet_12|transcript>/`
+  under random names. The folders are in git; their contents are ignored.
+  Never commit a real document.
+- ID numbers and roll numbers are stored as the last four characters only;
+  the audit lines are masked before they are kept.
 - The LLM sees the CV text, never the card images. With the default local
   Ollama nothing leaves the machine.
 - `.env` holds your API key and is ignored by git.
@@ -166,12 +175,13 @@ real engines and are skipped unless the environment says otherwise.
 
 ```text
 app/
-  extraction/   text.py (PDF/DOCX → text)  facts.py (regex)  address.py  name.py  record.py
-  llm/          client.py (OpenAI-compatible, local or hosted)  prompts.py  schema.py  resume.py
+  extraction/   text.py (PDF/DOCX → text)  facts.py (regex)  address.py  name.py  school.py  record.py
+  llm/          client.py (OpenAI-compatible, local or hosted)  prompts.py  schema.py  resume.py  academic.py
   ocr/          engine.py  cards.py (shared, card-type detection)  aadhaar.py  pan.py  verhoeff.py
-  verify/       names.py  service.py
+  academic/     parser.py (marksheets, transcripts)  service.py (text → both readings → record)
+  verify/       names.py  service.py (names, three-way figure checks)
   matching/     backends.py  engine.py (similarity + bulk screening)
-  api/          documents.py  subjects.py  verify.py  match.py
+  api/          documents.py  academic.py  subjects.py  verify.py  match.py
   static/       index.html (the UI)
 docs/           API.md  DATA_MODEL.md
 tests/          fixtures/ (synthetic resumes and cards, generated by make_*.py)

@@ -9,7 +9,7 @@ yet, so a schema change means a fresh database.
 
 ```
 subjects        id (uuid hex)  type: student|employee  external_ref  created_at
-documents       id  subject_id?  kind: cv|aadhaar|pan  side: front|back|null  path  filename  sha256  created_at
+documents       id  subject_id?  kind: cv|aadhaar|pan|marksheet_10|marksheet_12|transcript  side: front|back|null  path  filename  sha256  created_at
 extractions     id  document_id  source: llm|regex|ocr  engine (model or OCR engine)  payload JSON  created_at
 verifications   id  subject_id  cv_document_id  id_document_ids JSON  name_score  verdict  checks_passed  payload JSON  created_at
 ```
@@ -19,8 +19,10 @@ verifications   id  subject_id  cv_document_id  id_document_ids JSON  name_score
 - A **document** is one uploaded file, stored under `UPLOAD_DIR/<kind>/`
   with a random name; `filename` keeps the original name as data only.
 - An **extraction** is what was read off one document. `payload` is a
-  `CvRecord` (source `llm` or `regex`) or an `IdCardRecord` (source `ocr`).
-  Re-reading a document adds a new row; the API returns the latest.
+  `CvRecord` (source `llm` or `regex`), an `IdCardRecord` (source `ocr`) or
+  an `AcademicRecord` (source `llm` or `regex`; the text itself came from
+  the PDF or from OCR, see `text_source`). Re-reading a document adds a new
+  row; the API returns the latest.
 - A **verification** ties one CV to the cards it was checked against.
   `payload` is the full `VerificationResult`; the columns beside it exist
   so a verdict can be listed and filtered without opening the JSON.
@@ -49,6 +51,8 @@ Nothing stored contains a full Aadhaar or PAN number: records carry
   "education_levels": ["UG"],
   "highest_education_level": "UG",
   "skills": ["Python", "Django", "PostgreSQL"],
+  "school": {"tenth": {"percentage": 92.0, "cgpa": null, "board": "CBSE", "year": 2019},
+             "twelfth": {"percentage": 91.0, "cgpa": null, "board": "Tamil Nadu State Board", "year": 2021}},
   "cgpa": 8.4,
   "date_of_birth": "2003-03-12",
   "extraction_source": "llm",
@@ -74,6 +78,7 @@ Nothing stored contains a full Aadhaar or PAN number: records carry
 | `field_sources` | per field: `llm`, `regex` or `none`. Emails and phones are regex's whenever it found any -- the patterns are exact -- and the model only fills gaps |
 | `experience_years` | from the model's dated entries when it found any (computed in Python from the dates, never taken from the model's arithmetic), else regex's reading of stated durations and date ranges |
 | `education_levels` | `UG`, `Masters`, `PG`; the model's when it found any, else regex's |
+| `school` | the 10th and 12th results the CV *claims* (percentage or CGPA, board, year); checked against the marksheets and the form |
 | `agreement` | where regex and the model read the same resume differently; a reviewer's cue |
 | `regex_facts` | the regex reading in full, kept for audit |
 | `level`, `kind` | closed vocabularies: `UG|Masters|PG`, `internship|part_time|full_time|volunteer|freelance` |
@@ -113,6 +118,62 @@ Nothing stored contains a full Aadhaar or PAN number: records carry
 | `checks` | Aadhaar: `aadhaar_number_found`, `aadhaar_checksum` (Verhoeff), `aadhaar_sides_agree`. PAN: `pan_format`, `pan_individual`. Both: `card_type_matches` |
 | `lines` | the OCR lines, numbers masked, prefixed with the side when both were read; for audit and parser tuning |
 
+## `AcademicRecord` -- `extractions.payload` for a marksheet or transcript, and `academic.*`
+
+```json
+{
+  "type": "marksheet_10",
+  "detected_type": "marksheet_10",
+  "full_name": "AARAV MEHTA",
+  "father_name": "RAJESH MEHTA",
+  "mother_name": "PRIYA MEHTA",
+  "roll_last4": "4567",
+  "dob": "2003-03-12",
+  "board": "CENTRAL BOARD OF SECONDARY EDUCATION",
+  "institution": null,
+  "year": 2019,
+  "subjects": [{"name": "ENGLISH", "marks": 91.0, "max_marks": 100.0, "grade": "A2"}, "…"],
+  "total_marks": 460.0,
+  "max_total": 500.0,
+  "percentage": 92.0,
+  "percentage_source": "stated",
+  "percentage_computed": 92.0,
+  "cgpa": null,
+  "sgpa": [],
+  "result": "PASS",
+  "checks": {"document_type_matches": true, "percentage_matches_rows": true},
+  "text_source": "ocr",
+  "ocr_engine": "paddleocr",
+  "ocr_detail": "default-det/default-rec via onnxruntime",
+  "ocr_confidence": 0.93,
+  "extraction_source": "regex",
+  "llm_model": null,
+  "field_sources": {"full_name": "regex", "board": "regex", "year": "regex", "subjects": "regex", "percentage": "regex", "…": "…"},
+  "lines": ["CENTRAL BOARD OF SECONDARY EDUCATION", "…", "Roll No: XXXX4567", "…"]
+}
+```
+
+| Field | Meaning |
+| --- | --- |
+| `type` / `detected_type` | the slot it was uploaded as, and what its text says it is (`checks.document_type_matches`) |
+| `roll_last4` | last four characters of the roll / register / seat number; the full number is masked everywhere |
+| `percentage`, `percentage_source` | the printed figure when there is one (`stated`), else what the subject rows or the total add up to (`computed`) |
+| `percentage_computed` | what the rows add up to, always, so a printed figure can be checked (`checks.percentage_matches_rows`) |
+| `cgpa`, `sgpa` | transcripts: the printed CGPA (or the mean of the SGPAs when not printed) and the semester list; `checks.cgpa_matches_sgpa` |
+| `text_source` | `pdf` when the file had text, `ocr` when it was read off pixels |
+| `extraction_source`, `field_sources` | as for the CV: the model's reading when it was on, regex otherwise; per field |
+
+## `FormClaims` -- `verifications.payload.form`
+
+What the placement portal's registration form holds for the student,
+passed with the request so it is compared like any other source:
+
+```json
+{"full_name": "Aarav Mehta", "date_of_birth": "2003-03-12", "email": "…", "phone": "…", "cgpa": 8.4, "degree": "B.E. CSE",
+ "tenth_percentage": 92.0, "tenth_cgpa": null, "tenth_year": 2019, "tenth_board": "CBSE",
+ "twelfth_percentage": 91.0, "twelfth_cgpa": null, "twelfth_year": 2021, "twelfth_board": "Tamil Nadu State Board"}
+```
+
 ## `VerificationResult` -- `verifications.payload`
 
 ```json
@@ -149,9 +210,20 @@ Nothing stored contains a full Aadhaar or PAN number: records carry
     {"name": "dob_consistent", "passed": true, "detail": "aadhaar 2003-03-12 vs pan 2003-03-12"}
   ],
   "cv": { "…": "a CvRecord" },
-  "id_cards": {"aadhaar": { "…": "an IdCardRecord" }, "pan": { "…": "an IdCardRecord" }}
+  "id_cards": {"aadhaar": { "…": "an IdCardRecord" }, "pan": { "…": "an IdCardRecord" }},
+  "academic": {"marksheet_10": { "…": "an AcademicRecord" }, "transcript": { "…": "an AcademicRecord" }},
+  "form": { "…": "the FormClaims given, or null" }
 }
 ```
+
+With academic documents and a form the `checks` list grows: `cgpa_consistent`
+(`"form 8.4 vs CV 8.4 vs transcript 8.4"`), `tenth_marks_consistent`,
+`twelfth_marks_consistent`, `tenth_year_consistent`, `academic_years_in_order`,
+`marksheet_10_percentage_matches_rows`, `transcript_cgpa_matches_sgpa`,
+`form_vs_cv_name_match`, `form_email_on_cv`, `form_phone_on_cv`. A figure
+check compares every pair of sources that state it and names the pairs
+that disagree in `detail` -- `"form 9.1 vs CV 8.4 vs transcript 8.4 -- differ:
+form/CV, form/transcript"`.
 
 | Field | Meaning |
 | --- | --- |

@@ -60,6 +60,8 @@ class CvRecord(_Out):
     education_levels: list[str]
     highest_education_level: str | None
     skills: list[str]
+    #: {"tenth": {percentage, cgpa, board, year} | None, "twelfth": ...} -- what the CV claims.
+    school: dict[str, dict | None] = Field(default_factory=lambda: {"tenth": None, "twelfth": None})
     cgpa: float | None = None
     date_of_birth: str | None = None
     #: "llm" when the model's reading was used, else "regex".
@@ -99,6 +101,51 @@ class IdCardRecord(_Out):
     lines: list[str] = Field(default_factory=list)
 
 
+AcademicType = Literal["marksheet_10", "marksheet_12", "transcript"]
+
+
+class SubjectRow(_Out):
+    name: str | None = None
+    marks: float | None = None
+    max_marks: float | None = None
+    grade: str | None = None
+
+
+class AcademicRecord(_Out):
+    """A 10th / 12th marksheet or a college transcript. Roll numbers kept as last four only."""
+
+    type: AcademicType
+    detected_type: AcademicType | None = None
+    full_name: str | None = None
+    father_name: str | None = None
+    mother_name: str | None = None
+    roll_last4: str | None = None
+    dob: str | None = None
+    board: str | None = None
+    institution: str | None = None
+    year: int | None = None
+    subjects: list[SubjectRow] = Field(default_factory=list)
+    total_marks: float | None = None
+    max_total: float | None = None
+    percentage: float | None = None
+    #: "stated" (printed), "computed" (from the rows), or None.
+    percentage_source: str | None = None
+    percentage_computed: float | None = None
+    cgpa: float | None = None
+    sgpa: list[float] = Field(default_factory=list)
+    result: str | None = None
+    checks: dict[str, bool] = Field(default_factory=dict)
+    #: "pdf" when the file had text, "ocr" when it was read off pixels.
+    text_source: str
+    ocr_engine: str | None = None
+    ocr_detail: str | None = None
+    ocr_confidence: float | None = None
+    extraction_source: str
+    llm_model: str | None = None
+    field_sources: dict[str, Source]
+    lines: list[str] = Field(default_factory=list)
+
+
 class DocumentOut(_Out):
     document_id: str
     subject_id: str | None
@@ -115,6 +162,10 @@ class IdUploadResponse(DocumentOut):
     id_card: IdCardRecord
 
 
+class AcademicUploadResponse(DocumentOut):
+    academic: AcademicRecord
+
+
 class NameMatch(_Out):
     cv: str | None
     id: str | None
@@ -123,6 +174,32 @@ class NameMatch(_Out):
     score: float
     verdict: Literal["match", "review", "mismatch"]
     method: str
+
+
+class FormClaims(BaseModel):
+    """
+    What the student typed into the placement portal's registration form.
+
+    A third source beside the CV and the documents: every figure here is
+    held against both. All optional; unknown keys are ignored.
+    """
+
+    model_config = ConfigDict(extra="ignore")
+
+    full_name: str | None = Field(None, max_length=150)
+    date_of_birth: str | None = Field(None, max_length=20, description="YYYY-MM-DD")
+    email: str | None = Field(None, max_length=254)
+    phone: str | None = Field(None, max_length=30)
+    cgpa: float | None = Field(None, ge=0, le=10, description="current degree, 10-point scale")
+    degree: str | None = Field(None, max_length=200)
+    tenth_percentage: float | None = Field(None, ge=0, le=100)
+    tenth_cgpa: float | None = Field(None, ge=0, le=10)
+    tenth_year: int | None = Field(None, ge=1950, le=2100)
+    tenth_board: str | None = Field(None, max_length=100)
+    twelfth_percentage: float | None = Field(None, ge=0, le=100)
+    twelfth_cgpa: float | None = Field(None, ge=0, le=10)
+    twelfth_year: int | None = Field(None, ge=1950, le=2100)
+    twelfth_board: str | None = Field(None, max_length=100)
 
 
 class VerifiedDocument(_Out):
@@ -147,6 +224,10 @@ class VerificationResult(_Out):
     cv: CvRecord
     #: "aadhaar" and/or "pan".
     id_cards: dict[str, IdCardRecord]
+    #: "marksheet_10", "marksheet_12", "transcript" -- whichever were given.
+    academic: dict[str, AcademicRecord] = Field(default_factory=dict)
+    #: The registration form's claims, when they were given.
+    form: FormClaims | None = None
 
 
 class ScreenRequest(BaseModel):

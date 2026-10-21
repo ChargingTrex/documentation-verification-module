@@ -13,6 +13,9 @@ htmlcov/
 !/data/uploads/cv/
 !/data/uploads/aadhaar/
 !/data/uploads/pan/
+!/data/uploads/marksheet_10/
+!/data/uploads/marksheet_12/
+!/data/uploads/transcript/
 !/data/uploads/**/.gitkeep
 
 # Databases and benchmark output

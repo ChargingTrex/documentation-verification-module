@@ -17,6 +17,7 @@ from app.config import settings
 
 CV_EXTENSIONS = {".pdf", ".docx"}
 ID_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".pdf"}
+ACADEMIC_EXTENSIONS = ID_EXTENSIONS
 
 
 class UploadError(ValueError):

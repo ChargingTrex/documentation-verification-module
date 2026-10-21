@@ -76,6 +76,20 @@ def cv_record(profile: ExtractedProfile) -> dict:
     skills = facts.get("skills") or []
     sources["skills"] = LLM if skills else NONE
 
+    # School results: the model's entries by stage, else regex's two lines.
+    school: dict = {"tenth": None, "twelfth": None}
+    for entry in facts.get("school") or []:
+        key = {"10th": "tenth", "12th": "twelfth"}.get(entry.get("stage"))
+        if key and school[key] is None and (entry.get("percentage") is not None or entry.get("cgpa") is not None):
+            school[key] = {k: entry.get(k) for k in ("percentage", "cgpa", "board", "year")}
+    if any(school.values()):
+        sources["school"] = LLM
+    elif any((regex.get("school") or {}).values()):
+        school = regex["school"]
+        sources["school"] = REGEX
+    else:
+        sources["school"] = NONE
+
     # The engine's arbitration (see MatchingEngine.analyse_resume): the model's
     # date-derived total wins whenever it found dated work, even over a stated
     # claim -- a statement is the one thing a resume can make up freely; its
@@ -104,6 +118,7 @@ def cv_record(profile: ExtractedProfile) -> dict:
         "education_levels": sorted(profile.education_levels),
         "highest_education_level": profile.highest_education_level,
         "skills": skills,
+        "school": school,
         "cgpa": cgpa,
         "date_of_birth": date_of_birth,
         "extraction_source": profile.extraction_source,

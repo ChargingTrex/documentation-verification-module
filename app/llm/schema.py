@@ -59,6 +59,14 @@ class ProjectEntry(_Reply):
     tech_stack: list[str] = Field(default_factory=list, max_length=MAX_LIST_ITEMS)
 
 
+class SchoolEntry(_Reply):
+    stage: Literal["10th", "12th"] | None = None
+    board: str | None = Field(None, max_length=100)
+    year: int | None = Field(None, ge=1950, le=2100)
+    percentage: float | None = Field(None, ge=0, le=100)
+    cgpa: float | None = Field(None, ge=0, le=10)
+
+
 class ResumeFactsModel(_Reply):
     full_name: str | None = Field(None, max_length=150)
     emails: list[str] = Field(default_factory=list, max_length=MAX_LIST_ITEMS)
@@ -68,6 +76,7 @@ class ResumeFactsModel(_Reply):
     date_of_birth: str | None = Field(None, max_length=20)
     cgpa: float | None = Field(None, ge=0, le=10)
     education: list[EducationEntry] = Field(default_factory=list, max_length=MAX_LIST_ITEMS)
+    school: list[SchoolEntry] = Field(default_factory=list, max_length=MAX_LIST_ITEMS)
     experience: list[ExperienceEntry] = Field(default_factory=list, max_length=MAX_LIST_ITEMS)
     skills: list[str] = Field(default_factory=list, max_length=MAX_LIST_ITEMS)
     projects: list[ProjectEntry] = Field(default_factory=list, max_length=MAX_LIST_ITEMS)
@@ -259,7 +268,37 @@ def normalise_resume_reply(data: dict) -> dict:
 
     projects = [entry for entry in data.get("projects") or [] if isinstance(entry, dict)]
     data["projects"] = _fit_entries(projects, _fit_project)
+
+    school = []
+    for entry in data.get("school") or []:
+        if isinstance(entry, dict):
+            entry = dict(entry)
+            entry["stage"] = _clamp_stage(entry.get("stage"))
+            entry["board"] = _fit_text(entry.get("board"), 100)
+            entry["percentage"] = _as_number_or_none(entry.get("percentage"))
+            entry["cgpa"] = _as_cgpa(entry.get("cgpa"))
+            year = _as_number_or_none(entry.get("year"))
+            entry["year"] = int(year) if year is not None and 1950 <= year <= 2100 else None
+            if entry["percentage"] is not None and not 0 <= entry["percentage"] <= 100:
+                entry["percentage"] = None
+            school.append(entry)
+    data["school"] = school
     return data
+
+
+_STAGE_12 = re.compile(r"12|xii|hsc|higher|senior|intermediate|plus|puc", re.IGNORECASE)
+_STAGE_10 = re.compile(r"10|\bx\b|sslc|ssc|secondary|matric", re.IGNORECASE)
+
+
+def _clamp_stage(value) -> str | None:
+    """'Class XII', 'HSC', '12' -> '12th'; 'SSLC', 'X' -> '10th'."""
+    if not isinstance(value, str):
+        return None
+    if _STAGE_12.search(value):
+        return "12th"
+    if _STAGE_10.search(value):
+        return "10th"
+    return None
 
 
 def normalise_job_reply(data: dict) -> dict:

@@ -50,6 +50,10 @@
     pre { background: #0d1117; color: #e6edf3; padding: 12px; border-radius: 6px; overflow: auto; font-size: 12px; max-height: 480px; }
     .error { background: var(--bad-bg); color: var(--bad); padding: 10px 14px; border-radius: 6px; }
     .legend { font-size: 12px; color: var(--muted); margin-top: 8px; }
+    details.form-claims { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 10px; }
+    details.form-claims summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+    details.form-claims .row { margin-top: 10px; }
+    .num { font-variant-numeric: tabular-nums; }
     .hidden { display: none; }
     #health { font-size: 13px; color: var(--muted); }
     @media (max-width: 640px) { form .row, .grid, .names { grid-template-columns: 1fr; } .names .vs { display: none; } }
@@ -71,8 +75,26 @@
         <div><label>Aadhaar — front (name, DOB)</label><input type="file" name="aadhaar_front" accept=".png,.jpg,.jpeg,.webp,.pdf"></div>
         <div><label>Aadhaar — back (address)</label><input type="file" name="aadhaar_back" accept=".png,.jpg,.jpeg,.webp,.pdf"></div>
         <div><label>PAN card</label><input type="file" name="pan" accept=".png,.jpg,.jpeg,.webp,.pdf"></div>
+        <div></div>
+        <div><label>10th marksheet</label><input type="file" name="marksheet_10" accept=".png,.jpg,.jpeg,.webp,.pdf"></div>
+        <div><label>12th marksheet</label><input type="file" name="marksheet_12" accept=".png,.jpg,.jpeg,.webp,.pdf"></div>
+        <div><label>College transcript / grade card</label><input type="file" name="transcript" accept=".png,.jpg,.jpeg,.webp,.pdf"></div>
       </div>
-      <div class="legend">Give an Aadhaar (one or both sides), a PAN, or both cards. Images: PNG, JPG, WEBP or PDF.</div>
+      <div class="legend">Any combination: an Aadhaar (one or both sides), a PAN, marksheets, a transcript. Images: PNG, JPG, WEBP or PDF.</div>
+      <details class="form-claims"><summary>Registration form data (optional) — what the student entered in the portal</summary>
+        <div class="row">
+          <div><label>Full name</label><input type="text" name="f_full_name"></div>
+          <div><label>Date of birth</label><input type="date" name="f_date_of_birth"></div>
+          <div><label>Email</label><input type="text" name="f_email"></div>
+          <div><label>Phone</label><input type="text" name="f_phone"></div>
+          <div><label>CGPA (10-point)</label><input type="number" step="0.01" min="0" max="10" name="f_cgpa"></div>
+          <div></div>
+          <div><label>10th percentage</label><input type="number" step="0.01" min="0" max="100" name="f_tenth_percentage"></div>
+          <div><label>10th year</label><input type="number" min="1950" max="2100" name="f_tenth_year"></div>
+          <div><label>12th percentage</label><input type="number" step="0.01" min="0" max="100" name="f_twelfth_percentage"></div>
+          <div><label>12th year</label><input type="number" min="1950" max="2100" name="f_twelfth_year"></div>
+        </div>
+      </details>
       <button type="submit" id="go">Verify</button>
       <div class="legend" id="health">Checking service…</div>
     </form>
@@ -125,6 +147,8 @@
       row('Education level', esc(cv.highest_education_level) || '—', badge(src.education_levels, m)) +
       row('Skills', list(cv.skills), badge(src.skills, m)) +
       (cv.cgpa != null ? row('CGPA', esc(cv.cgpa), badge(src.cgpa, m)) : '') +
+      ((cv.school || {}).tenth ? row('10th (claimed)', `${cv.school.tenth.percentage != null ? esc(cv.school.tenth.percentage) + '%' : 'CGPA ' + esc(cv.school.tenth.cgpa)}${cv.school.tenth.board ? ' · ' + esc(cv.school.tenth.board) : ''}${cv.school.tenth.year ? ' · ' + esc(cv.school.tenth.year) : ''}`, badge(src.school, m)) : '') +
+      ((cv.school || {}).twelfth ? row('12th (claimed)', `${cv.school.twelfth.percentage != null ? esc(cv.school.twelfth.percentage) + '%' : 'CGPA ' + esc(cv.school.twelfth.cgpa)}${cv.school.twelfth.board ? ' · ' + esc(cv.school.twelfth.board) : ''}${cv.school.twelfth.year ? ' · ' + esc(cv.school.twelfth.year) : ''}`, badge(src.school, m)) : '') +
       (cv.date_of_birth ? row('Date of birth', esc(cv.date_of_birth), badge(src.date_of_birth, m)) : '');
   }
 
@@ -145,16 +169,44 @@
     );
   }
 
+  function renderAcademic(kind, a) {
+    const src = a.field_sources || {}, m = a.llm_model;
+    const b = (f) => badge(src[f] === 'llm' ? 'llm' : src[f] === 'regex' ? (a.text_source === 'ocr' ? 'ocr' : 'regex') : 'none',
+                           src[f] === 'llm' ? m : a.text_source === 'ocr' ? a.ocr_engine : 'PDF text');
+    const subjects = (a.subjects || []).map(s => `${esc(s.name)}: <span class="num">${esc(s.marks)}${s.max_marks ? '/' + esc(s.max_marks) : ''}</span>${s.grade ? ' ' + esc(s.grade) : ''}`).join('<br>');
+    return (
+      row('Read from', esc(a.text_source === 'ocr' ? `OCR · ${a.ocr_engine || ''}` : 'PDF text')) +
+      row('Detected type', a.detected_type ? `${esc(LABEL[a.detected_type] || a.detected_type)}${a.detected_type === a.type ? '' : ' <span class="badge none">does not match the slot</span>'}` : '<span class="legend">unclear</span>') +
+      row('Name', esc(a.full_name) || '—', b('full_name')) +
+      (a.father_name ? row("Father's name", esc(a.father_name), b('father_name')) : '') +
+      row('Board / university', esc(a.board || a.institution) || '—', b('board')) +
+      row('Year', esc(a.year) || '—', b('year')) +
+      (a.roll_last4 ? row('Roll / register no.', `•••• ${esc(a.roll_last4)}`, b('roll_last4')) : '') +
+      (a.dob ? row('Date of birth', esc(a.dob), b('dob')) : '') +
+      (a.percentage != null ? row('Percentage', `<span class="num">${esc(a.percentage)}%</span> <span class="legend">${esc(a.percentage_source)}${a.percentage_computed != null && a.percentage_source === 'stated' ? ` · rows add up to ${esc(a.percentage_computed)}%` : ''}</span>`, b('percentage')) : '') +
+      (a.cgpa != null ? row('CGPA', `<span class="num">${esc(a.cgpa)}</span>`, b('cgpa')) : '') +
+      (a.sgpa && a.sgpa.length ? row('SGPA by semester', a.sgpa.map(esc).join(' · '), b('sgpa')) : '') +
+      (a.total_marks != null ? row('Total', `<span class="num">${esc(a.total_marks)}${a.max_total ? ' / ' + esc(a.max_total) : ''}</span>`, b('total_marks')) : '') +
+      (subjects ? row('Subjects', `<details><summary>${a.subjects.length} subjects</summary>${subjects}</details>`, b('subjects')) : '') +
+      (a.result ? row('Result', esc(a.result), b('result')) : '') +
+      row('Lines read', `<details><summary>${a.lines.length} lines</summary>${a.lines.map(esc).join('<br>')}</details>`)
+    );
+  }
+
   const VERDICT = {match: 'Names match', review: 'Needs review', mismatch: 'Names do not match'};
-  const LABEL = {aadhaar: 'Aadhaar', pan: 'PAN', aadhaar_vs_pan: 'Aadhaar vs PAN'};
+  const LABEL = {aadhaar: 'Aadhaar', pan: 'PAN', aadhaar_vs_pan: 'Aadhaar vs PAN', marksheet_10: '10th marksheet',
+                 marksheet_12: '12th marksheet', transcript: 'Transcript', form_vs_cv: 'Form vs CV',
+                 form_vs_aadhaar: 'Form vs Aadhaar', form_vs_pan: 'Form vs PAN'};
 
   function render(body) {
     const nm = body.name_match;
     $('banner').className = `banner ${nm.verdict}`;
-    $('banner').innerHTML = `${esc(VERDICT[nm.verdict])} — score ${esc(nm.score)}<small>${esc(nm.method)} · the worst of ${esc(Object.keys(body.id_cards).map(k => LABEL[k]).join(' and '))} · verification ${esc(body.verification_id)} · subject ${esc(body.subject_id)}</small>`;
+    const basis = Object.keys(body.id_cards).length ? Object.keys(body.id_cards) : Object.keys(body.academic || {});
+    const failing = body.checks.filter(c => !c.passed).length;
+    $('banner').innerHTML = `${esc(VERDICT[nm.verdict])} — score ${esc(nm.score)}<small>${esc(nm.method)} · the worst of ${esc(basis.map(k => LABEL[k] || k).join(', '))} · ${failing ? `${failing} check${failing > 1 ? 's' : ''} failing` : 'all checks pass'} · verification ${esc(body.verification_id)}</small>`;
     $('names').innerHTML = Object.entries(body.name_matches).map(([key, m]) => {
-      const left = key === 'aadhaar_vs_pan' ? 'Name on Aadhaar' : 'Name on CV';
-      const right = key === 'aadhaar_vs_pan' ? 'Name on PAN' : `Name on ${LABEL[key]}`;
+      const left = key === 'aadhaar_vs_pan' ? 'Name on Aadhaar' : key.startsWith('form_vs_') ? 'Name on form' : 'Name on CV';
+      const right = key === 'aadhaar_vs_pan' ? 'Name on PAN' : key.startsWith('form_vs_') ? `Name on ${LABEL[key.replace('form_vs_', '')] || 'CV'}` : `Name on ${LABEL[key] || key}`;
       return `<div class="card names">
         <div><h2>${esc(left)}</h2><div class="n">${esc(m.cv) || '—'}</div><div class="legend">${esc(m.cv_normalised || '')}</div></div>
         <div class="vs"><span class="badge ${esc(m.verdict === 'match' ? 'regex' : m.verdict === 'review' ? 'ocr' : 'none')}">${esc(m.verdict)} · ${esc(m.score)}</span></div>
@@ -164,6 +216,8 @@
     renderCv(body.cv);
     $('cards').innerHTML = Object.entries(body.id_cards).map(([kind, card]) =>
       `<div class="card"><h2>From the ${esc(LABEL[kind])} card</h2><table>${renderId(card)}</table></div>`
+    ).join('') + Object.entries(body.academic || {}).map(([kind, a]) =>
+      `<div class="card"><h2>From the ${esc(LABEL[kind] || kind)}</h2><table>${renderAcademic(kind, a)}</table></div>`
     ).join('');
     $('checks').innerHTML = body.checks.map(c => `<li class="${c.passed ? '' : 'fail'}">${esc(c.name)}${c.detail ? `<small>${esc(c.detail)}</small>` : ''}</li>`).join('');
     $('raw').textContent = JSON.stringify(body, null, 2);
@@ -173,6 +227,12 @@
   $('form').addEventListener('submit', async (event) => {
     event.preventDefault();
     const form = new FormData(event.target);
+    // The registration form's claims travel as one JSON field; empty inputs are left out.
+    const claims = {};
+    for (const [key, value] of [...form.entries()]) {
+      if (key.startsWith('f_')) { form.delete(key); if (String(value).trim() !== '') claims[key.slice(2)] = isNaN(value) || key.endsWith('name') || key.endsWith('email') || key.endsWith('phone') || key.endsWith('birth') ? value : Number(value); }
+    }
+    if (Object.keys(claims).length) form.set('form', JSON.stringify(claims));
     $('error').classList.add('hidden'); $('result').classList.add('hidden');
     $('go').disabled = true; $('go').textContent = health && health.llm.enabled ? 'Reading… (the model can take a minute)' : 'Reading…';
     try {

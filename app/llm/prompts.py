@@ -30,6 +30,8 @@ Return exactly these keys:
   "education": [{{"degree": string, "level": "UG"|"Masters"|"PG"|null, "field": string|null,
                  "institution": string|null, "start": "YYYY-MM"|"YYYY"|null,
                  "end": "YYYY-MM"|"YYYY"|null, "cgpa": number|null}}],
+  "school": [{{"stage": "10th"|"12th", "board": string|null, "year": integer|null,
+              "percentage": number|null, "cgpa": number|null}}],   // school results the resume states, only if stated
   "experience": [{{"role": string, "organization": string|null,
                   "kind": "internship"|"part_time"|"full_time"|"volunteer"|"freelance"|null,
                   "start": "YYYY-MM"|null, "end": "YYYY-MM"|null, "is_current": boolean,
@@ -41,6 +43,7 @@ Return exactly these keys:
 }}
 "level": UG = bachelor's or diploma, Masters = master's or PG diploma, PG = PhD/doctorate.
 "experience" is jobs and internships only -- not projects, not education.
+"school" is the 10th (SSLC/SSC/Class X) and 12th (HSC/Class XII/Intermediate) results; college degrees go in "education".
 """
 
 JOB_SYSTEM_PROMPT = f"""You extract requirements from a recruiter's job description.

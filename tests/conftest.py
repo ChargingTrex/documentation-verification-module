@@ -70,6 +70,16 @@ def card_dir(tmp_path_factory) -> Path:
 
 
 @pytest.fixture(scope="session")
+def academic_dir(tmp_path_factory) -> Path:
+    """Synthetic marksheets (PNG, lines embedded) and a transcript (text PDF), rendered once."""
+    from tests.fixtures.make_academic import render_sheets
+
+    out = tmp_path_factory.mktemp("academic")
+    render_sheets(out)
+    return out
+
+
+@pytest.fixture(scope="session")
 def engine() -> MatchingEngine:
     """
     The engine on whichever backend this machine has.

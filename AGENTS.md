@@ -48,6 +48,23 @@ checkpoint must pass -- actually run, output shown -- before the next starts.
 - [x] `verify/service.py`, `POST /verify`, `POST /verify/documents`, `GET /verifications/{id}`
 - [x] `static/index.html`: upload both, verdict banner, per-field source badges
 - [x] Real documents: pdfium before PyPDF2 (glyph-per-line PDFs), top-line name on the regex path
+- [x] The card says what it is (`detected_type`, `card_type_matches`)
+
+## Phase 4 — Academic documents and the registration form
+- [x] `academic/parser.py`: 10th / 12th marksheets and transcripts from text lines -- board, year, name,
+      roll (last four), DOB, subject rows, total, printed and recomputed percentage, CGPA/SGPA, result;
+      `detect_academic_type`
+- [x] `academic/service.py`: PDF text or OCR → regex reading + LLM reading (`llm/academic.py`) → record with sources
+- [x] CV readers gain 10th/12th marks (`extraction/school.py`, `school` in the LLM schema)
+- [x] `POST /documents/academic`; `/verify` takes `marksheet_10`, `marksheet_12`, `transcript` and a `form` JSON
+      (the portal's registration form) -- CGPA, school marks and years, DOB compared pairwise across form / CV / document
+- [x] UI: academic inputs, a registration-form section, one panel per sheet
+- **Checkpoint (passed 2026-10-21, synthetic sheets):** a CV claiming CGPA 8.4 / 92% / 91% against a 10th sheet,
+  a 12th sheet and a transcript → every figure check passes; the same CV with 9.1 / 95% → `cgpa_consistent` and
+  `tenth_marks_consistent` fail naming the pairs; a sheet whose rows add up to 82.6% against a printed 88.5% is
+  flagged; a 10th sheet in the 12th slot is flagged. Not yet run on real marksheets.
+
+## Phase 3 checkpoint record
 - **Checkpoint (passed 2026-10-19):** Aarav CV vs "Aarav Mehta" Aadhaar → match;
   vs Kabir → mismatch; "A. Mehta" → review. A real resume vs a real Aadhaar of a
   different person → mismatch at 23, with name/email/phone/address/experience
